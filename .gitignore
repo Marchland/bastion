@@ -40,5 +40,4 @@ out/
 .kotlin
 
 ### App ###
-# Local-only profile (real credentials/endpoints); never committed.
-application-local.yaml
+src/main/resources/application-local.yaml
