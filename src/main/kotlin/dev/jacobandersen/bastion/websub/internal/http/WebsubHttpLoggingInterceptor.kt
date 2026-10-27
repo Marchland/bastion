@@ -1,4 +1,4 @@
-package dev.jacobandersen.bastion.websub.http
+package dev.jacobandersen.bastion.websub.internal.http
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.http.HttpRequest

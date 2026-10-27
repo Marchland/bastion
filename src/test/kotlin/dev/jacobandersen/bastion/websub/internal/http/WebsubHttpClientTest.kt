@@ -1,7 +1,7 @@
-package dev.jacobandersen.bastion.websub.http
+package dev.jacobandersen.bastion.websub.internal.http
 
 import com.sun.net.httpserver.HttpServer
-import dev.jacobandersen.bastion.websub.config.WebsubConfig
+import dev.jacobandersen.bastion.websub.internal.config.WebsubConfig
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertInstanceOf

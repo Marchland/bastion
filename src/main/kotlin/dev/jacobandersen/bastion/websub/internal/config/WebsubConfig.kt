@@ -1,4 +1,4 @@
-package dev.jacobandersen.bastion.websub.config
+package dev.jacobandersen.bastion.websub.internal.config
 
 import org.springframework.boot.context.properties.ConfigurationProperties
 

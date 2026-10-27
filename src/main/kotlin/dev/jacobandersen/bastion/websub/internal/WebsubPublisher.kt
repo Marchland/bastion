@@ -1,9 +1,9 @@
-package dev.jacobandersen.bastion.websub.service
+package dev.jacobandersen.bastion.websub.internal
 
-import dev.jacobandersen.bastion.webmention.util.HttpUtil
-import dev.jacobandersen.bastion.websub.config.WebsubConfig
-import dev.jacobandersen.bastion.websub.http.PublishResult
-import dev.jacobandersen.bastion.websub.http.WebsubHttpClient
+import dev.jacobandersen.bastion.util.HttpUtil
+import dev.jacobandersen.bastion.websub.internal.config.WebsubConfig
+import dev.jacobandersen.bastion.websub.internal.http.PublishResult
+import dev.jacobandersen.bastion.websub.internal.http.WebsubHttpClient
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.jobrunr.scheduling.JobScheduler
 import org.springframework.stereotype.Service
