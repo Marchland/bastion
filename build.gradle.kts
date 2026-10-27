@@ -55,7 +55,6 @@ dependencies {
     implementation("io.github.oshai:kotlin-logging-jvm:7.0.3")
     implementation("com.github.slugify:slugify:4.0.1")
     implementation("org.springframework.modulith:spring-modulith-starter-core")
-    implementation("org.springframework.modulith:spring-modulith-starter-jpa")
     testImplementation("org.springframework.modulith:spring-modulith-starter-test")
     runtimeOnly("com.github.slugify:slugify") {
         capabilities {
