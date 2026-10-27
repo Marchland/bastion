@@ -1,4 +1,4 @@
-package dev.jacobandersen.bastion.config
+package dev.jacobandersen.bastion.config.internal
 
 import org.springframework.boot.web.servlet.FilterRegistrationBean
 import org.springframework.context.annotation.Bean

@@ -1,4 +1,4 @@
-package dev.jacobandersen.bastion.config
+package dev.jacobandersen.bastion.config.internal
 
 import org.hibernate.type.format.jackson.Jackson3JsonFormatMapper
 import org.springframework.boot.hibernate.autoconfigure.HibernatePropertiesCustomizer

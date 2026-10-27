@@ -1,4 +1,4 @@
-package dev.jacobandersen.bastion.config
+package dev.jacobandersen.bastion.config.internal
 
 import org.springframework.boot.context.properties.ConfigurationProperties
 

@@ -1,4 +1,4 @@
-package dev.jacobandersen.bastion.config
+package dev.jacobandersen.bastion.config.internal
 
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean

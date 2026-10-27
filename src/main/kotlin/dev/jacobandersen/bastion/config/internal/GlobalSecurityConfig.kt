@@ -1,5 +1,6 @@
-package dev.jacobandersen.bastion.config
+package dev.jacobandersen.bastion.config.internal
 
+import dev.jacobandersen.bastion.config.security.applyBastionDefaults
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Primary

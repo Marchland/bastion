@@ -1,4 +1,4 @@
-package dev.jacobandersen.bastion.config
+package dev.jacobandersen.bastion.config.internal
 
 import dev.jacobandersen.microformats2.Mf2Parser
 import dev.jacobandersen.microformats2.Mf2ParserImpl

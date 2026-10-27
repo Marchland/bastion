@@ -1,4 +1,4 @@
-package dev.jacobandersen.bastion.config
+package dev.jacobandersen.bastion.config.internal
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.boot.flyway.autoconfigure.FlywayMigrationStrategy
