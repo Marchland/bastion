@@ -1,7 +1,7 @@
-package dev.jacobandersen.bastion.micropub.data.service
+package dev.jacobandersen.bastion.post.data.service
 
-import dev.jacobandersen.bastion.micropub.data.entity.PostSyndicationEntity
-import dev.jacobandersen.bastion.micropub.data.repository.PostSyndicationRepository
+import dev.jacobandersen.bastion.post.data.entity.PostSyndicationEntity
+import dev.jacobandersen.bastion.post.data.repository.PostSyndicationRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.util.UUID

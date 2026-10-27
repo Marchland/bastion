@@ -1,11 +1,11 @@
 package dev.jacobandersen.bastion.api.post
 
 import dev.jacobandersen.bastion.api.post.dto.PostLookupResult
-import dev.jacobandersen.bastion.micropub.data.domain.Post
-import dev.jacobandersen.bastion.micropub.data.service.PostService
 import dev.jacobandersen.bastion.micropub.type.PostMf2Type
 import dev.jacobandersen.bastion.micropub.type.PostTagFilter
-import dev.jacobandersen.bastion.url.UrlService
+import dev.jacobandersen.bastion.post.data.domain.Post
+import dev.jacobandersen.bastion.post.data.service.PostService
+import dev.jacobandersen.bastion.post.internal.UrlService
 import dev.jacobandersen.microformats2.firstText
 import org.springframework.stereotype.Service
 import java.time.Instant

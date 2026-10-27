@@ -7,7 +7,7 @@ import dev.jacobandersen.bastion.micropub.type.PostMf2Type
 import dev.jacobandersen.bastion.micropub.type.PostTagFilter
 import dev.jacobandersen.bastion.post.PostTypesConfig
 import dev.jacobandersen.bastion.post.PostTypesRegistry
-import dev.jacobandersen.bastion.url.UrlService
+import dev.jacobandersen.bastion.post.internal.UrlService
 import dev.jacobandersen.bastion.webmention.data.service.ReceivedWebmentionService
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test

@@ -2,10 +2,10 @@ package dev.jacobandersen.bastion
 
 import dev.jacobandersen.bastion.api.post.PostQueryService
 import dev.jacobandersen.bastion.api.tag.TagQueryService
-import dev.jacobandersen.bastion.micropub.data.service.PostService
-import dev.jacobandersen.bastion.micropub.type.PostStatus
 import dev.jacobandersen.bastion.micropub.type.PostTagFilter
-import dev.jacobandersen.bastion.micropub.type.PostVisibility
+import dev.jacobandersen.bastion.post.data.service.PostService
+import dev.jacobandersen.bastion.post.type.PostStatus
+import dev.jacobandersen.bastion.post.type.PostVisibility
 import dev.jacobandersen.microformats2.Mf2Object
 import dev.jacobandersen.microformats2.Mf2Value
 import org.junit.jupiter.api.Assertions.assertEquals

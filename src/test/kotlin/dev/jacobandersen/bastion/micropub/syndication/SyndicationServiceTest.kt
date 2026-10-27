@@ -1,13 +1,13 @@
 package dev.jacobandersen.bastion.micropub.syndication
 
-import dev.jacobandersen.bastion.micropub.data.domain.Post
-import dev.jacobandersen.bastion.micropub.data.entity.PostSyndicationEntity
-import dev.jacobandersen.bastion.micropub.data.service.PostService
-import dev.jacobandersen.bastion.micropub.data.service.PostSyndicationService
-import dev.jacobandersen.bastion.micropub.type.PostStatus
-import dev.jacobandersen.bastion.micropub.type.PostVisibility
 import dev.jacobandersen.bastion.micropub.type.req.MicropubUpdatePayload
-import dev.jacobandersen.bastion.url.UrlService
+import dev.jacobandersen.bastion.post.data.domain.Post
+import dev.jacobandersen.bastion.post.data.entity.PostSyndicationEntity
+import dev.jacobandersen.bastion.post.data.service.PostService
+import dev.jacobandersen.bastion.post.data.service.PostSyndicationService
+import dev.jacobandersen.bastion.post.internal.UrlService
+import dev.jacobandersen.bastion.post.type.PostStatus
+import dev.jacobandersen.bastion.post.type.PostVisibility
 import dev.jacobandersen.microformats2.Mf2Object
 import dev.jacobandersen.microformats2.Mf2Value
 import dev.jacobandersen.microformats2.firstText

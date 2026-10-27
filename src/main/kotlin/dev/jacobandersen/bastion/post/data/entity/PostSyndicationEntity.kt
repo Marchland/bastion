@@ -1,4 +1,4 @@
-package dev.jacobandersen.bastion.micropub.data.entity
+package dev.jacobandersen.bastion.post.data.entity
 
 import jakarta.persistence.Column
 import jakarta.persistence.Entity

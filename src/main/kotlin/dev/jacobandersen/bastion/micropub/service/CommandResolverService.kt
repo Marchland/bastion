@@ -2,8 +2,8 @@ package dev.jacobandersen.bastion.micropub.service
 
 import com.github.slugify.Slugify
 import dev.jacobandersen.bastion.micropub.type.MicropubCommand
-import dev.jacobandersen.bastion.micropub.type.PostStatus
-import dev.jacobandersen.bastion.micropub.type.PostVisibility
+import dev.jacobandersen.bastion.post.type.PostStatus
+import dev.jacobandersen.bastion.post.type.PostVisibility
 import dev.jacobandersen.microformats2.Mf2Value
 import org.springframework.stereotype.Service
 

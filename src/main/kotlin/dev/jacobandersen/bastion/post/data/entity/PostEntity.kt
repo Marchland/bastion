@@ -1,8 +1,8 @@
-package dev.jacobandersen.bastion.micropub.data.entity
+package dev.jacobandersen.bastion.post.data.entity
 
-import dev.jacobandersen.bastion.micropub.data.domain.Post
-import dev.jacobandersen.bastion.micropub.type.PostStatus
-import dev.jacobandersen.bastion.micropub.type.PostVisibility
+import dev.jacobandersen.bastion.post.data.domain.Post
+import dev.jacobandersen.bastion.post.type.PostStatus
+import dev.jacobandersen.bastion.post.type.PostVisibility
 import dev.jacobandersen.microformats2.Mf2Object
 import jakarta.persistence.Column
 import jakarta.persistence.Entity

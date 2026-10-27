@@ -1,6 +1,6 @@
 package dev.jacobandersen.bastion.webmention.service
 
-import dev.jacobandersen.bastion.url.UrlService
+import dev.jacobandersen.bastion.post.internal.UrlService
 import dev.jacobandersen.bastion.webmention.config.WebmentionConfig
 import dev.jacobandersen.bastion.webmention.data.domain.WebmentionNotification
 import dev.jacobandersen.bastion.webmention.data.domain.WebmentionState

@@ -1,7 +1,7 @@
 package dev.jacobandersen.bastion.webmention.controller
 
-import dev.jacobandersen.bastion.micropub.data.service.PostService
-import dev.jacobandersen.bastion.url.UrlService
+import dev.jacobandersen.bastion.post.data.service.PostService
+import dev.jacobandersen.bastion.post.internal.UrlService
 import dev.jacobandersen.bastion.webmention.data.service.ReceivedWebmentionService
 import dev.jacobandersen.bastion.webmention.http.SourceHostValidator
 import dev.jacobandersen.bastion.webmention.service.WebmentionReceiverService

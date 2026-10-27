@@ -1,9 +1,10 @@
 package dev.jacobandersen.bastion.micropub.data.entity
 
 import dev.jacobandersen.bastion.TestcontainersConfiguration
-import dev.jacobandersen.bastion.micropub.data.repository.PostRepository
-import dev.jacobandersen.bastion.micropub.type.PostStatus
-import dev.jacobandersen.bastion.micropub.type.PostVisibility
+import dev.jacobandersen.bastion.post.data.entity.PostEntity
+import dev.jacobandersen.bastion.post.data.repository.PostRepository
+import dev.jacobandersen.bastion.post.type.PostStatus
+import dev.jacobandersen.bastion.post.type.PostVisibility
 import dev.jacobandersen.microformats2.Mf2Object
 import dev.jacobandersen.microformats2.Mf2Value
 import org.junit.jupiter.api.Assertions.assertEquals

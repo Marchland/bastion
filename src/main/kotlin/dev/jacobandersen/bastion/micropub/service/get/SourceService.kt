@@ -1,9 +1,9 @@
 package dev.jacobandersen.bastion.micropub.service.get
 
-import dev.jacobandersen.bastion.micropub.data.service.PostService
 import dev.jacobandersen.bastion.micropub.type.resp.ApiResponse
 import dev.jacobandersen.bastion.micropub.type.resp.SourceListResponse
-import dev.jacobandersen.bastion.url.UrlService
+import dev.jacobandersen.bastion.post.data.service.PostService
+import dev.jacobandersen.bastion.post.internal.UrlService
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.stereotype.Service
 

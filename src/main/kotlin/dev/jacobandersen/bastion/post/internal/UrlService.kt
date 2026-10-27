@@ -1,6 +1,7 @@
-package dev.jacobandersen.bastion.url
+package dev.jacobandersen.bastion.post.internal
 
-import dev.jacobandersen.bastion.micropub.data.domain.Post
+import dev.jacobandersen.bastion.post.data.domain.Post
+import dev.jacobandersen.bastion.url.UrlNormalizer
 import jakarta.annotation.PostConstruct
 import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.stereotype.Service

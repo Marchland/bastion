@@ -1,16 +1,16 @@
 package dev.jacobandersen.bastion.micropub.syndication
 
 import dev.jacobandersen.bastion.TestcontainersConfiguration
-import dev.jacobandersen.bastion.micropub.data.domain.Post
-import dev.jacobandersen.bastion.micropub.data.entity.PostSyndicationEntity
-import dev.jacobandersen.bastion.micropub.data.service.PostService
-import dev.jacobandersen.bastion.micropub.data.service.PostSyndicationService
 import dev.jacobandersen.bastion.micropub.service.post.CreateService
 import dev.jacobandersen.bastion.micropub.service.post.DeleteService
 import dev.jacobandersen.bastion.micropub.service.post.UpdateService
 import dev.jacobandersen.bastion.micropub.type.req.MicropubPayload
 import dev.jacobandersen.bastion.micropub.type.resp.ApiResponse
-import dev.jacobandersen.bastion.url.UrlService
+import dev.jacobandersen.bastion.post.data.domain.Post
+import dev.jacobandersen.bastion.post.data.entity.PostSyndicationEntity
+import dev.jacobandersen.bastion.post.data.service.PostService
+import dev.jacobandersen.bastion.post.data.service.PostSyndicationService
+import dev.jacobandersen.bastion.post.internal.UrlService
 import org.jobrunr.scheduling.JobScheduler
 import org.junit.jupiter.api.Assertions.assertDoesNotThrow
 import org.junit.jupiter.api.Assertions.assertEquals

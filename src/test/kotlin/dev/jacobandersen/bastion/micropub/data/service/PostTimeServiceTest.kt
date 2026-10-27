@@ -1,5 +1,6 @@
 package dev.jacobandersen.bastion.micropub.data.service
 
+import dev.jacobandersen.bastion.post.data.service.PostTimeService
 import dev.jacobandersen.microformats2.Mf2Object
 import dev.jacobandersen.microformats2.Mf2Value
 import org.junit.jupiter.api.Assertions.assertEquals

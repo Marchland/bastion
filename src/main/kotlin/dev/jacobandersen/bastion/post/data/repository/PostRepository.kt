@@ -1,8 +1,8 @@
-package dev.jacobandersen.bastion.micropub.data.repository
+package dev.jacobandersen.bastion.post.data.repository
 
-import dev.jacobandersen.bastion.micropub.data.entity.PostEntity
-import dev.jacobandersen.bastion.micropub.type.PostStatus
-import dev.jacobandersen.bastion.micropub.type.PostVisibility
+import dev.jacobandersen.bastion.post.data.entity.PostEntity
+import dev.jacobandersen.bastion.post.type.PostStatus
+import dev.jacobandersen.bastion.post.type.PostVisibility
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.repository.JpaRepository

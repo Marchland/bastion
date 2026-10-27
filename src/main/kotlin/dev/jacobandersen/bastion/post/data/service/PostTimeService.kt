@@ -1,4 +1,4 @@
-package dev.jacobandersen.bastion.micropub.data.service
+package dev.jacobandersen.bastion.post.data.service
 
 import dev.jacobandersen.microformats2.Mf2Object
 import dev.jacobandersen.microformats2.Mf2Value

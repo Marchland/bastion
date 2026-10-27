@@ -62,15 +62,16 @@ class MicropubAuthenticationFilter(
         if (authHeader.isNullOrBlank()) {
             return if (bodyToken.isNullOrBlank()) ExtractedToken.Missing else ExtractedToken.Valid(bodyToken)
         }
+
         if (!bodyToken.isNullOrBlank()) {
             return ExtractedToken.Invalid
         }
 
         val parts = authHeader.split(" ")
         if (!parts[0].equals("Bearer", ignoreCase = true)) {
-            // Another scheme cannot carry a Micropub bearer token.
             return ExtractedToken.Missing
         }
+
         return if (parts.size == 2 && parts[1].isNotBlank()) {
             ExtractedToken.Valid(parts[1])
         } else {

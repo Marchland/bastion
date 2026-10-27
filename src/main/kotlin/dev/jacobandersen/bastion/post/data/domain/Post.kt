@@ -1,8 +1,8 @@
-package dev.jacobandersen.bastion.micropub.data.domain
+package dev.jacobandersen.bastion.post.data.domain
 
-import dev.jacobandersen.bastion.micropub.data.entity.PostEntity
-import dev.jacobandersen.bastion.micropub.type.PostStatus
-import dev.jacobandersen.bastion.micropub.type.PostVisibility
+import dev.jacobandersen.bastion.post.data.entity.PostEntity
+import dev.jacobandersen.bastion.post.type.PostStatus
+import dev.jacobandersen.bastion.post.type.PostVisibility
 import dev.jacobandersen.microformats2.Mf2Object
 import dev.jacobandersen.microformats2.Mf2Value
 import java.time.OffsetDateTime

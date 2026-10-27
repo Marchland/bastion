@@ -1,4 +1,4 @@
-package dev.jacobandersen.bastion.micropub.type
+package dev.jacobandersen.bastion.post.type
 
 import java.util.Locale
 
