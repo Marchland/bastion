@@ -8,6 +8,8 @@ plugins {
     id("org.jlleitschuh.gradle.ktlint") version "12.2.0"
 }
 
+extra["springModulithVersion"] = "2.1.1"
+
 group = "dev.jacobandersen"
 version = file("version.txt").readText().trim()
 description = "bastion"
@@ -33,6 +35,7 @@ repositories {
 dependencyManagement {
     imports {
         mavenBom("org.apache.logging.log4j:log4j-bom:2.26.1")
+        mavenBom("org.springframework.modulith:spring-modulith-bom:${extra["springModulithVersion"]}")
     }
 }
 
@@ -44,13 +47,15 @@ dependencies {
     implementation("org.flywaydb:flyway-database-postgresql")
     implementation("org.jetbrains.kotlin:kotlin-reflect")
     implementation("dev.jacobandersen:microformats2:0.1.2")
-    implementation("org.jobrunr:jobrunr-spring-boot-4-starter:8.7.0")
+    implementation("org.jobrunr:jobrunr-spring-boot-4-starter:9.0.2")
     implementation("tools.jackson.module:jackson-module-kotlin")
     implementation("org.springframework.boot:spring-boot-starter-security")
     implementation("org.apache.logging.log4j:log4j-api")
     implementation("org.apache.logging.log4j:log4j-core")
     implementation("io.github.oshai:kotlin-logging-jvm:7.0.3")
     implementation("com.github.slugify:slugify:4.0.1")
+    implementation("org.springframework.modulith:spring-modulith-starter-core")
+    testImplementation("org.springframework.modulith:spring-modulith-starter-test")
     runtimeOnly("com.github.slugify:slugify") {
         capabilities {
             requireCapability("com.github.slugify:slugify-transliterator")
@@ -71,6 +76,8 @@ dependencies {
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
     testImplementation("org.testcontainers:testcontainers-junit-jupiter")
     testImplementation("org.testcontainers:testcontainers-postgresql")
+    runtimeOnly("org.springframework.modulith:spring-modulith-actuator")
+    runtimeOnly("org.springframework.modulith:spring-modulith-observability")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 

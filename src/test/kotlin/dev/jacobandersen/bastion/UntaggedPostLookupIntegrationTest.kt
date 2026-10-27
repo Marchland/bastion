@@ -1,11 +1,11 @@
 package dev.jacobandersen.bastion
 
-import dev.jacobandersen.bastion.api.post.PostQueryService
-import dev.jacobandersen.bastion.api.tag.TagQueryService
-import dev.jacobandersen.bastion.micropub.data.service.PostService
-import dev.jacobandersen.bastion.micropub.type.PostStatus
-import dev.jacobandersen.bastion.micropub.type.PostTagFilter
-import dev.jacobandersen.bastion.micropub.type.PostVisibility
+import dev.jacobandersen.bastion.post.internal.store.PostService
+import dev.jacobandersen.bastion.post.read.PostFeedQuery
+import dev.jacobandersen.bastion.post.read.PostReadService
+import dev.jacobandersen.bastion.post.types.PostStatus
+import dev.jacobandersen.bastion.post.types.PostTagFilter
+import dev.jacobandersen.bastion.post.types.PostVisibility
 import dev.jacobandersen.microformats2.Mf2Object
 import dev.jacobandersen.microformats2.Mf2Value
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -30,10 +30,7 @@ class UntaggedPostLookupIntegrationTest {
     lateinit var postService: PostService
 
     @Autowired
-    lateinit var postQueryService: PostQueryService
-
-    @Autowired
-    lateinit var tagQueryService: TagQueryService
+    lateinit var postReadService: PostReadService
 
     @Test
     fun `none finds only public published untagged posts and combines with ordinary tags`() {
@@ -48,22 +45,20 @@ class UntaggedPostLookupIntegrationTest {
         create(prefix + "-deleted", PostStatus.PUBLISHED, PostVisibility.PUBLIC, true)
 
         val untagged =
-            postQueryService.feed(
-                h = null,
-                type = null,
-                limitArg = 100,
-                offsetArg = 0,
-                tagFilter = PostTagFilter.parse(listOf("none")),
+            postReadService.feed(
+                PostFeedQuery(
+                    tag = listOf("none"),
+                    limit = 100,
+                ),
             )
         assertEquals(setOf(publicUntagged.slug, publicBlankCategories.slug), untagged.map { it.slug }.toSet())
 
         val untaggedOrKotlin =
-            postQueryService.feed(
-                h = null,
-                type = null,
-                limitArg = 100,
-                offsetArg = 0,
-                tagFilter = PostTagFilter.parse(listOf("none", "KOTLIN")),
+            postReadService.feed(
+                PostFeedQuery(
+                    tag = listOf("none", "KOTLIN"),
+                    limit = 100,
+                ),
             )
         assertEquals(
             setOf(publicUntagged.slug, publicBlankCategories.slug, publicKotlin.slug),
@@ -71,26 +66,22 @@ class UntaggedPostLookupIntegrationTest {
         )
 
         val kotlinOnly =
-            postQueryService.feed(
-                h = null,
-                type = null,
-                limitArg = 100,
-                offsetArg = 0,
-                tagFilter = PostTagFilter.parse(listOf("kotlin")),
+            postReadService.feed(
+                PostFeedQuery(
+                    tag = listOf("kotlin"),
+                    limit = 100,
+                ),
             )
         assertEquals(listOf(publicKotlin.slug), kotlinOnly.map { it.slug })
 
         val allPublic =
-            postQueryService.feed(
-                h = null,
-                type = null,
-                limitArg = 100,
-                offsetArg = 0,
+            postReadService.feed(
+                PostFeedQuery(limit = 100),
             )
         assertTrue(allPublic.map { it.slug }.containsAll(listOf(publicUntagged.slug, publicKotlin.slug, publicJava.slug)))
         assertFalse(allPublic.map { it.slug }.contains(prefix + "-private"))
 
-        val tags = tagQueryService.list(limitArg = 100, offsetArg = 0)
+        val tags = postReadService.tags(limitArg = 100, offsetArg = 0)
         assertFalse(tags.tags.any { it.tag == PostTagFilter.UNTAGGED })
     }
 

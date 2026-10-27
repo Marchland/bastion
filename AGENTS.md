@@ -16,12 +16,52 @@ When updating this file, preserve this bar for all agents and keep entries conci
 
 - `./gradlew test` runs the full suite; the Spring Boot tests use Testcontainers (needs Docker).
 - `./gradlew ktlintCheck` runs the linter (ktlint 1.8.0).
+- Modulith module and named-interface metadata lives in Kotlin `ModuleMetadata.kt` files annotated with
+  `@PackageInfo` (the Kotlin-friendly alternative to `package-info.java`). Keep one per package that needs
+  `@ApplicationModule` or `@NamedInterface`.
 - Jackson 3 (`tools.jackson.*`) is used, not Jackson 2; `@JsonProperty` still comes from
   `com.fasterxml.jackson.annotation`.
 - JobRunr: methods invoked from a scheduled/enqueued job lambda must not use Kotlin default parameter values - JobRunr
   fails to schedule them (`UnsupportedOperationException` at `JobDetailsBuilder`). Lambda args are also serialized once
   at registration and replayed on every fire, so never pass a computed time (e.g. `Instant.now()`) through the lambda -
   compute it inside the invoked method, as `IndieAuthRowPurgeService.purge()` does.
+
+## Module boundaries and CQRS
+
+- Module roots contain only `ModuleMetadata.kt` plus public named-interface packages. Everything implementation-only
+  lives under `internal/`; named interfaces are direct children of the module root.
+- `post` public contracts:
+  - `post::post-commands`: `PostCommandService` and create/update/delete commands.
+  - `post::post-query`: authenticated/internal reads (`PostQueryService`, `PostStateView`).
+  - `post::post-metadata`: Micropub `q=config`/`q=properties` views.
+  - `post::post-syndication`: target definitions for Micropub.
+  - `post::post-read`: public API reads.
+  - `post::post-events`, `post::post-types`, `post::post-url`.
+- `micropub` has no public surface. Its `internal/command` and `internal/query` packages are protocol adapters over
+  post commands/queries/metadata/syndication.
+- `indieauth` exposes only `indieauth::indieauth-token-query`. Token exchange/refresh/revocation commands stay internal.
+- `webmention` exposes only `webmention::webmention-read`. Inbound and outbound commands stay internal.
+- `api` exposes nothing; it depends only on `post::post-read` and `webmention::webmention-read`.
+- `config` exposes `config::config-security`; everything else is internal.
+- `PostReadService` owns public feed/lookup/tag/syndication read behavior, including query parsing, date ranges, and
+  pagination validation. `api` controllers only translate HTTP params and map `PostView`/`PostLookup` to response DTOs.
+- `WebmentionReadService` owns webmention read views and per-post counts. `api` maps its views to response DTOs and does
+  not import internal webmention types.
+
+## Module events
+
+- `post` owns post-change events: `PostService` publishes `PostChangedEvent` (`post/events/`) from `create` and
+  `updatePost`, classifying delete/restore. The event is intentionally thin (`postId`, change type, before/after feed
+  visibility); consumers load the latest post instead of applying an event delta, so duplicate or out-of-order delivery
+  converges on current state.
+- Event listeners use `@TransactionalEventListener(AFTER_COMMIT)` plus `@Transactional(REQUIRES_NEW)`. The
+  `REQUIRES_NEW` is required: after-commit listeners still run with the completed transaction bound, so writes made
+  without a new transaction silently do not persist (and JobRunr enqueues can be lost).
+- Webmention reconciliation (`WebmentionService.reconcile`) is idempotent: it compares notifications by `post_id`,
+  current source URL, and currently linked targets, then activates, retracts, or silently inactivates as needed.
+- WebSub pings when the public feed changes (`Post.isFeedVisible`: published + PUBLIC + not deleted). This includes
+  demotions and deletions, but not draft or UNLISTED edits, because UNLISTED posts are reachable by URL but absent from
+  the public feed.
 
 ## IndieAuth
 
@@ -35,7 +75,7 @@ When updating this file, preserve this bar for all agents and keep entries conci
 - The authorization redirect carries `code` + `state` + `iss` (`util/Redirects.kt`); `iss` must equal the metadata
   issuer for mix-up protection.
 - Code redemption is split per spec: POST `/indieauth/auth` returns `{me}` only (`ProfileUrlController` +
-  `ProfileUrlService`), POST `/indieauth/token` returns tokens (`TokenController` + `AccessTokenService`) and
+  `ProfileUrlService`), POST `/indieauth/token` returns tokens (`TokenController` + `AccessTokenCommandService`) and
   rejects empty-scope codes with `invalid_grant`. Token responses carry `expires_in` and rotate a `refresh_token`
   (`grant_type=refresh_token`, same-or-narrower scope, single-use rotation via `RefreshTokenService` and the
   `indieauth_refresh_tokens` table, TTLs `access-token-ttl` 30d / `refresh-token-ttl` 90d).
@@ -43,45 +83,44 @@ When updating this file, preserve this bar for all agents and keep entries conci
   always 200), and userinfo (`/indieauth/userinfo`, needs `profile`/`email` scope) are served and advertised.
   Profile claims come from static `bastion.indieauth.profile.*` config (`ProfileClaimService`); `email` needs both
   `profile` and `email` scopes. Default scopes include `email` (`IndieAuthConfig`).
-- Micropub token validation (`MicropubTokenValidator`) resolves against Bastion-issued access tokens, not an external
-  token endpoint.
+- Micropub token validation (`MicropubTokenValidator`) uses `AccessTokenQueryService` from
+  `indieauth::indieauth-token-query`; token commands stay inside IndieAuth.
 - Raw `state`/`code`/`access_token`/`refresh_token` values are never persisted - only their SHA-256 digests
-  (`indieauth/security/Tokens.kt`). PKCE is lenient for max client compat (deprecated): a missing `code_challenge`
+  (`indieauth/internal/security/Tokens.kt`). PKCE is lenient for max client compat (deprecated): a missing `code_challenge`
   is accepted with a warning, S256-only when present, and the redemption enforces the conditional rule (no challenge
   means no verifier, challenge means a matching verifier is required).
-- Client validation (`util/IndieAuthUrls.kt`, `service/ClientMetadataFetcher.kt`) enforces strict profile/client URL
+- Client validation (`indieauth/internal/util/IndieAuthUrls.kt`, `indieauth/internal/service/ClientMetadataFetcher.kt`) enforces strict profile/client URL
   rules and the 4.2.2 cross-host redirect allowlist (JSON `redirect_uris`, `Link rel=redirect_uri`, HTML link tags).
   Loopback clients are never fetched; inconclusive fetches allow with a warning (fail-open), a fetched allowlist
   missing the target blocks.
 - Adding a provider = one new `IdentityProvider` implementation plus config.
 
-## Micropub syndication
+## Syndication
 
-- Syndication targets are downstream micropub servers (e.g. Bridgy) configured under
-  `bastion.micropub.syndication.targets` (`application.yaml`): each has `uid`, `name`, `endpoint`, optional bearer
-  `token`, and supported `actions` (default CREATE + DELETE). `mp-syndicate-to` values must match a target `uid`, and
-  the configured targets back the `q=syndicate-to` and `q=config` `syndicate-to` responses.
-- Non-public posts are never sent to targets. Requested targets are recorded at create time even for a draft/private
-  post, then dispatched on the later publish transition; the async create/rebase jobs re-check `Post.publiclyReachable`
-  at job time because a post can be demoted or deleted between dispatch and send. A target only holds a copy once
-  `post_syndications.syndicated_url` is recorded.
-- Dispatch and the best-effort `@Job(retries = 0)` jobs live in `micropub/syndication/SyndicationService.kt`.
-  Syndication is fire-and-forget: failures are logged and must never fail the originating create/update/delete request.
-- The downstream copy is an excerpt plus permalink, never full content (`micropub/syndication/SyndicationContentMapper.kt`):
-  notes send `{excerpt}\n\n{url}`, articles (`type == "article"`) send `{name}: {excerpt}\n\n{url}`. The
-  `maxGraphemes` budget covers the total in grapheme clusters (`Graphemes.kt`, Bluesky counts graphemes not chars);
-  the default is 300 via `defaultMaxGraphemes`, overridable per target with `max-graphemes`. The permalink is never
-  dropped; `summary` is overwritten with the same text so full content cannot leak through it.
-- Updates go through the same budget: `runUpdateJob` rewrites `content`/`summary` entries via
-  `SyndicationHttpClient.mapUpdateToExcerpt`, and an article rename without a content change injects a
-  `content` replace so the downstream title does not go stale.
-- `mp-syndicate-to` is honored on update as well as create (`SyndicationService.diffTargets`): a `replace`
-  entry is the desired target set, otherwise `add`/`delete` apply incrementally. Added targets are syndicated
-  (or retained when non-public); removed targets are retracted via `retractTargets` (best-effort delete when a
-  copy is held, then the record is forgotten).
+- Syndication now lives in `post/internal/syndication`; `micropub` only exposes target choices and sends requested
+  target UIDs through `PostCommandService`. The config prefix remains `bastion.micropub.syndication.targets` for
+  deployment compatibility.
+- `PostCommandService` syncs desired target rows (`post_syndications.desired`), and `PostChangedEvent` triggers
+  `PostSyndicationListener` -> `SyndicationService.reconcile`. The listener is `AFTER_COMMIT` with `REQUIRES_NEW`.
+- `post_syndications` also stores the canonical `source_url` of the held copy. Reconciliation creates missing copies,
+  sends excerpt updates for existing copies, rebases when the post URL moved, and retracts copies when the post is
+  deleted, non-public, or the target is no longer desired. `markRetracted` clears the held-copy state so repeated
+  events do not enqueue duplicate retractions.
+- Dispatch jobs are best-effort `@Job(retries = 0)` and never fail the post command. Non-public posts are never sent.
+- The downstream copy is an excerpt plus permalink (`SyndicationContentMapper.kt`): notes send `{excerpt}\n\n{url}`,
+  articles (`type == "article"`) send `{name}: {excerpt}\n\n{url}`. `maxGraphemes` counts grapheme clusters; the
+  permalink is never dropped and `summary` is overwritten with the same text so full content cannot leak.
+- Updates use `SyndicationHttpClient.serializeExcerptUpdate`: a full `content`/`summary`/`url` (and article `name`)
+  replace built from current post state, not the original Micropub delta. This keeps reconciliation idempotent.
+- `mp-syndicate-to` is translated by Micropub into a protocol-neutral `SyndicationTargetChange`
+  (`replace`/`add`/`remove`); the post command applies it to the current desired target set.
 
 ## Webmention
 
+- Outbound notification state is reconciled from post events (`PostWebmentionListener` ->
+  `WebmentionService.reconcile`). Notifications are keyed to a post via `webmention_notifications.post_id`; a source
+  URL that no longer matches the post retracts delivered notifications (fixes slug moves) and silently inactivates
+  undelivered ones. `refresh` re-sends to delivered targets on updates; deletions only retract.
 - Self-webmentions are suppressed: `UrlService.isOwnContentUrl` (host + port match on `bastion.content.base-url`,
   lenient on scheme) filters targets in `WebmentionService.targetUrlsOf` plus a guard in `sendWebmention`, and
   `WebmentionController` rejects sources on the own content domain.
