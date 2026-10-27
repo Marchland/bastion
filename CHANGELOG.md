@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.35](https://github.com/Marchland/bastion/compare/v1.3.34...v1.3.35) (2026-10-27)
+
+
+### Features
+
+* adopt Spring Modulith boundaries and CQRS contracts ([#89](https://github.com/Marchland/bastion/issues/89)) ([82b148d](https://github.com/Marchland/bastion/commit/82b148db3685123b8cc5892c1bdfbccb6ab2e511))
+
 ## [1.3.34](https://github.com/Marchland/bastion/compare/v1.3.33...v1.3.34) (2026-10-27)
 
 
