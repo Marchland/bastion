@@ -1,4 +1,4 @@
-package dev.jacobandersen.bastion.micropub.syndication
+package dev.jacobandersen.bastion.post.internal.syndication
 
 import java.text.BreakIterator
 

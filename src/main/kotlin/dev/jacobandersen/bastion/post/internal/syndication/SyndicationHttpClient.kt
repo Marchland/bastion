@@ -1,8 +1,9 @@
-package dev.jacobandersen.bastion.micropub.syndication
+package dev.jacobandersen.bastion.post.internal.syndication
 
-import dev.jacobandersen.bastion.micropub.type.req.MicropubUpdatePayload
+import dev.jacobandersen.bastion.post.internal.model.Post
 import dev.jacobandersen.bastion.util.StringUtil.excerpt
 import dev.jacobandersen.microformats2.Mf2Object
+import dev.jacobandersen.microformats2.firstText
 import org.springframework.http.MediaType
 import org.springframework.http.client.ClientHttpRequestFactory
 import org.springframework.http.client.JdkClientHttpRequestFactory
@@ -12,7 +13,6 @@ import org.springframework.web.client.RestClient
 import org.springframework.web.client.RestClientException
 import org.springframework.web.client.RestClientResponseException
 import tools.jackson.databind.ObjectMapper
-import tools.jackson.databind.node.ObjectNode
 import java.net.http.HttpClient
 import java.time.Duration
 
@@ -79,72 +79,35 @@ class SyndicationHttpClient(
         return send(target, MediaType.APPLICATION_JSON, objectMapper.writeValueAsString(body))
     }
 
-    fun serializeUpdate(update: MicropubUpdatePayload): SyndicationUpdate =
-        SyndicationUpdate(
-            replace = update.replacements?.let { objectMapper.writeValueAsString(it) },
-            add = update.additions?.let { objectMapper.writeValueAsString(it) },
-            delete =
-                update.removals?.let { removals ->
-                    when (removals) {
-                        is MicropubUpdatePayload.Removals.All -> objectMapper.writeValueAsString(removals.properties)
-                        is MicropubUpdatePayload.Removals.Many -> objectMapper.writeValueAsString(removals.properties)
-                    }
-                },
-        )
-
     /**
-     * Rewrites an outgoing update so the downstream copy stays an excerpt plus
-     * permalink: `content`/`summary` entries in `replace`/`add` are replaced
-     * with [excerptText]. When [titleInExcerpt] is true (article posts, whose
-     * syndicated text leads with the title) and the update renames the post
-     * without touching its content, a `content` replace is added so the
-     * downstream title does not go stale. Unparseable sections are passed
-     * through untouched.
+     * Builds an idempotent update that replaces the downstream excerpt, title
+     * (for articles), and canonical URL. This avoids depending on the original
+     * Micropub update delta.
      */
-    fun mapUpdateToExcerpt(
-        update: SyndicationUpdate,
-        excerptText: String,
-        titleInExcerpt: Boolean,
+    fun serializeExcerptUpdate(
+        post: Post,
+        canonicalUrl: String,
+        maxGraphemes: Int,
     ): SyndicationUpdate {
-        val replaceNode = update.replace?.let(::parseObjectOrNull)
-        val addNode = update.add?.let(::parseObjectOrNull)
-        if ((update.replace != null && replaceNode == null) || (update.add != null && addNode == null)) {
-            return update
+        val excerpt = SyndicationContentMapper.excerptText(post, canonicalUrl, maxGraphemes)
+        val replace =
+            linkedMapOf<String, Any>(
+                "content" to listOf(excerpt),
+                "summary" to listOf(excerpt),
+                "url" to listOf(canonicalUrl),
+            )
+        if (SyndicationContentMapper.includesTitle(post)) {
+            post.post
+                .firstText("name")
+                ?.takeIf { it.isNotBlank() }
+                ?.let { replace["name"] = listOf(it) }
         }
 
-        val mentionsName = listOfNotNull(replaceNode, addNode).any { it.has("name") }
-        val mentionsContent = listOfNotNull(replaceNode, addNode).any { it.has("content") }
-        replaceNode?.let { rewriteContentEntries(it, excerptText) }
-        addNode?.let { rewriteContentEntries(it, excerptText) }
-
-        var replace = replaceNode?.let { objectMapper.writeValueAsString(it) }
-        if (titleInExcerpt && mentionsName && !mentionsContent) {
-            val node = replaceNode ?: objectMapper.createObjectNode()
-            node.set("content", objectMapper.createArrayNode().add(excerptText))
-            replace = objectMapper.writeValueAsString(node)
-        }
-
-        return update.copy(
-            replace = replace,
-            add = addNode?.let { objectMapper.writeValueAsString(it) },
+        return SyndicationUpdate(
+            replace = objectMapper.writeValueAsString(replace),
+            add = null,
+            delete = null,
         )
-    }
-
-    private fun parseObjectOrNull(json: String): ObjectNode? {
-        val node = runCatching { objectMapper.readTree(json) }.getOrNull()
-        return node as? ObjectNode
-    }
-
-    private fun rewriteContentEntries(
-        node: ObjectNode,
-        excerptText: String,
-    ) {
-        if (node.has("content")) {
-            node.set("content", objectMapper.createArrayNode().add(excerptText))
-        }
-        if (node.has("summary")) {
-            node.set("summary", objectMapper.createArrayNode().add(excerptText))
-        }
     }
 
     private fun send(

@@ -1,4 +1,4 @@
-package dev.jacobandersen.bastion.micropub.syndication
+package dev.jacobandersen.bastion.post.internal.syndication
 
 /**
  * The syndication lifecycle actions a target may support. A target only ever

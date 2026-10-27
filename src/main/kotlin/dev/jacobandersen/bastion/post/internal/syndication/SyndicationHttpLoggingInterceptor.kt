@@ -1,4 +1,4 @@
-package dev.jacobandersen.bastion.micropub.syndication
+package dev.jacobandersen.bastion.post.internal.syndication
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.http.HttpRequest

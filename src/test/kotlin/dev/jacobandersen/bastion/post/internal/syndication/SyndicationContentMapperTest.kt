@@ -1,8 +1,8 @@
-package dev.jacobandersen.bastion.micropub.syndication
+package dev.jacobandersen.bastion.post.internal.syndication
 
-import dev.jacobandersen.bastion.post.data.domain.Post
-import dev.jacobandersen.bastion.post.type.PostStatus
-import dev.jacobandersen.bastion.post.type.PostVisibility
+import dev.jacobandersen.bastion.post.internal.model.Post
+import dev.jacobandersen.bastion.post.types.PostStatus
+import dev.jacobandersen.bastion.post.types.PostVisibility
 import dev.jacobandersen.microformats2.Mf2Object
 import dev.jacobandersen.microformats2.Mf2Value
 import dev.jacobandersen.microformats2.firstText

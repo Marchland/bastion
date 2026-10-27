@@ -1,12 +1,18 @@
-package dev.jacobandersen.bastion.micropub.syndication
+package dev.jacobandersen.bastion.post.internal.syndication
 
 import com.sun.net.httpserver.HttpServer
+import dev.jacobandersen.bastion.post.internal.model.Post
+import dev.jacobandersen.bastion.post.types.PostStatus
+import dev.jacobandersen.bastion.post.types.PostVisibility
+import dev.jacobandersen.microformats2.Mf2Object
+import dev.jacobandersen.microformats2.Mf2Value
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import tools.jackson.databind.ObjectMapper
 import tools.jackson.databind.json.JsonMapper
 import java.net.InetSocketAddress
+import java.util.UUID
 
 class SyndicationHttpClientTest {
     private val mapper: ObjectMapper = JsonMapper.builderWithJackson2Defaults().build()
@@ -18,6 +24,26 @@ class SyndicationHttpClientTest {
             uid = "target",
             name = "Target",
             endpoint = "http://127.0.0.1:$port/micropub",
+        )
+
+    private fun post(type: String? = null): Post =
+        Post(
+            id = UUID.randomUUID(),
+            slug = "post",
+            status = PostStatus.PUBLISHED,
+            visibility = PostVisibility.PUBLIC,
+            h = "h-entry",
+            type = type,
+            post =
+                Mf2Object(
+                    type = listOf("h-entry"),
+                    properties =
+                        mapOf(
+                            "name" to listOf(Mf2Value.String("Title")),
+                            "content" to listOf(Mf2Value.String("A long body that will be excerpted.")),
+                            "summary" to listOf(Mf2Value.String("A long body that will be excerpted.")),
+                        ),
+                ),
         )
 
     @Test
@@ -34,7 +60,15 @@ class SyndicationHttpClientTest {
         server.start()
         try {
             val result =
-                client.sendUpdate(target(server.address.port), "https://bastion.test/post/1", serializedUpdate())
+                client.sendUpdate(
+                    target(server.address.port),
+                    "https://bastion.test/post/1",
+                    SyndicationUpdate(
+                        replace = """{"name":["Renamed"]}""",
+                        add = """{"category":["extra"]}""",
+                        delete = """["name"]""",
+                    ),
+                )
             assertTrue(result is SyndicationSendResult.Success)
         } finally {
             server.stop(0)
@@ -89,71 +123,32 @@ class SyndicationHttpClientTest {
         assertEquals("action=delete&url=https%3A%2F%2Fbastion.test%2Fpost%2F1", capturedBody)
     }
 
-    private fun serializedUpdate(): SyndicationUpdate =
-        SyndicationUpdate(
-            replace = """{"name":["Renamed"]}""",
-            add = """{"category":["extra"]}""",
-            delete = """["name"]""",
-        )
-
     @Test
-    fun `mapUpdateToExcerpt rewrites content and summary entries to the excerpt`() {
+    fun `serializeExcerptUpdate replaces excerpt url and article title`() {
         val update =
-            SyndicationUpdate(
-                replace = """{"content":["the full post body that must not go downstream"],"name":["Title"],"summary":["full summary"]}""",
-                add = """{"category":["extra"]}""",
-                delete = """["photo"]""",
+            client.serializeExcerptUpdate(
+                post(type = "article"),
+                "https://bastion.test/post/1",
+                300,
             )
 
-        val mapped = client.mapUpdateToExcerpt(update, "excerpt…\n\nhttps://bastion.test/post", titleInExcerpt = false)
-
-        val replace = mapper.readTree(mapped.replace!!)
-        assertEquals("excerpt…\n\nhttps://bastion.test/post", replace.get("content").get(0).asString())
-        assertEquals("excerpt…\n\nhttps://bastion.test/post", replace.get("summary").get(0).asString())
+        val replace = mapper.readTree(update.replace!!)
+        assertEquals(1, replace.get("content").size())
+        assertEquals(1, replace.get("summary").size())
+        assertEquals("https://bastion.test/post/1", replace.get("url").get(0).asString())
         assertEquals("Title", replace.get("name").get(0).asString())
-        val add = mapper.readTree(mapped.add!!)
-        assertEquals("extra", add.get("category").get(0).asString())
-        assertEquals("""["photo"]""", mapped.delete)
     }
 
     @Test
-    fun `mapUpdateToExcerpt rewrites content entries in additions`() {
-        val update = SyndicationUpdate(replace = null, add = """{"content":["added full body"]}""", delete = null)
+    fun `serializeExcerptUpdate omits title for notes`() {
+        val update =
+            client.serializeExcerptUpdate(
+                post(type = "note"),
+                "https://bastion.test/post/1",
+                300,
+            )
 
-        val mapped = client.mapUpdateToExcerpt(update, "excerpt…", titleInExcerpt = false)
-
-        val add = mapper.readTree(mapped.add!!)
-        assertEquals("excerpt…", add.get("content").get(0).asString())
-    }
-
-    @Test
-    fun `mapUpdateToExcerpt adds a content replace when an article is renamed`() {
-        val update = SyndicationUpdate(replace = """{"name":["New Title"]}""", add = null, delete = null)
-
-        val mapped = client.mapUpdateToExcerpt(update, "New Title: excerpt…", titleInExcerpt = true)
-
-        val replace = mapper.readTree(mapped.replace!!)
-        assertEquals("New Title", replace.get("name").get(0).asString())
-        assertEquals("New Title: excerpt…", replace.get("content").get(0).asString())
-    }
-
-    @Test
-    fun `mapUpdateToExcerpt leaves a note rename without injected content`() {
-        val update = SyndicationUpdate(replace = """{"name":["New Title"]}""", add = null, delete = null)
-
-        val mapped = client.mapUpdateToExcerpt(update, "excerpt…", titleInExcerpt = false)
-
-        val replace = mapper.readTree(mapped.replace!!)
-        assertEquals("New Title", replace.get("name").get(0).asString())
-        assertTrue(!replace.has("content"))
-    }
-
-    @Test
-    fun `mapUpdateToExcerpt passes unparseable sections through untouched`() {
-        val update = SyndicationUpdate(replace = "not json", add = null, delete = """["name"]""")
-
-        val mapped = client.mapUpdateToExcerpt(update, "excerpt…", titleInExcerpt = true)
-
-        assertEquals(update, mapped)
+        val replace = mapper.readTree(update.replace!!)
+        assertTrue(!replace.has("name"))
     }
 }

@@ -1,5 +1,7 @@
-package dev.jacobandersen.bastion.micropub.syndication
+package dev.jacobandersen.bastion.post.internal.syndication
 
+import dev.jacobandersen.bastion.post.internal.syndication.SyndicationAction
+import dev.jacobandersen.bastion.post.internal.syndication.SyndicationConfig
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
