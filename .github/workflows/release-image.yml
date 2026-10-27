@@ -10,6 +10,8 @@ permissions:
   packages: write
 
 env:
+  PACKAGES_USER: jacobsandersen
+  PACKAGES_TOKEN: ${{ secrets.PACKAGES_READ_TOKEN }}
   BASTION_TIMEZONE: Asia/Manila
   BASTION_PUBLIC_URL: https://bastion.test
   BASTION_CONTENT_BASE_URL: https://bastion.test
