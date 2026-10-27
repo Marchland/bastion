@@ -1,4 +1,4 @@
-package dev.jacobandersen.bastion.api.post.dto
+package dev.jacobandersen.bastion.api.internal.post.dto
 
 data class SyndicationDto(
     val uid: String,

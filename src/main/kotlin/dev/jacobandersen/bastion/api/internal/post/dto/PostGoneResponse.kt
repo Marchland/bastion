@@ -1,4 +1,4 @@
-package dev.jacobandersen.bastion.api.post.dto
+package dev.jacobandersen.bastion.api.internal.post.dto
 
 /** Tombstone for a post that was publicly reachable and is now deleted. */
 data class PostGoneResponse(
