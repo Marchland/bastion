@@ -114,6 +114,8 @@ spring:
 jobrunr:
   background-job-server:
     enabled: ${JOBRUNR_BACKGROUND_JOB_SERVER:true}
+    worker-count: ${JOBRUNR_WORKER_COUNT:4}
+    poll-interval-in-seconds: ${JOBRUNR_POLL_INTERVAL_SECONDS:15}
   dashboard:
     enabled: ${JOBRUNR_DASHBOARD_ENABLE:true}
   database:
