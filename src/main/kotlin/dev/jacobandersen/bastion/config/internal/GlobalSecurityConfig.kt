@@ -41,19 +41,6 @@ class GlobalSecurityConfig(
         }
     }
 
-    @Bean("publicCorsConfigurationSource")
-    fun publicCorsConfigurationSource(): CorsConfigurationSource {
-        val config =
-            CorsConfiguration().apply {
-                allowedOriginPatterns = listOf("*")
-                allowedMethods = listOf("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
-                allowedHeaders = listOf("*")
-                allowCredentials = false
-                maxAge = 3600L
-            }
-        return CorsConfigurationSource { _ -> config }
-    }
-
     @Bean
     @Order(Ordered.LOWEST_PRECEDENCE)
     fun defaultSecurityFilterChain(http: HttpSecurity): SecurityFilterChain =
