@@ -55,6 +55,7 @@ dependencies {
     implementation("io.github.oshai:kotlin-logging-jvm:7.0.3")
     implementation("com.github.slugify:slugify:4.0.1")
     implementation("org.springframework.modulith:spring-modulith-starter-core")
+    implementation("org.springframework.modulith:spring-modulith-starter-jdbc")
     testImplementation("org.springframework.modulith:spring-modulith-starter-test")
     runtimeOnly("com.github.slugify:slugify") {
         capabilities {
@@ -66,6 +67,7 @@ dependencies {
     implementation("org.jsoup:jsoup:1.23.2")
     testImplementation("org.springframework.security:spring-security-test")
     testImplementation("org.mockito.kotlin:mockito-kotlin:6.2.0")
+    testImplementation("org.awaitility:awaitility")
     developmentOnly("org.springframework.boot:spring-boot-devtools")
     runtimeOnly("org.postgresql:postgresql")
     testImplementation("org.springframework.boot:spring-boot-starter-actuator-test")

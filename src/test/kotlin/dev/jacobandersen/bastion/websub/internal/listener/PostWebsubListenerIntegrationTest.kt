@@ -1,25 +1,33 @@
 package dev.jacobandersen.bastion.websub.internal.listener
 
 import dev.jacobandersen.bastion.TestcontainersConfiguration
+import dev.jacobandersen.bastion.config.internal.events.EventPublicationResubmissionService
 import dev.jacobandersen.bastion.micropub.internal.command.CreateService
 import dev.jacobandersen.bastion.micropub.internal.command.DeleteService
 import dev.jacobandersen.bastion.micropub.internal.command.UpdateService
 import dev.jacobandersen.bastion.micropub.internal.type.req.MicropubPayload
 import dev.jacobandersen.bastion.micropub.internal.type.resp.ApiResponse
 import dev.jacobandersen.bastion.websub.internal.WebsubPublisher
+import org.awaitility.Awaitility.await
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertInstanceOf
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import org.mockito.Mockito.never
-import org.mockito.Mockito.times
+import org.mockito.Mockito.after
+import org.mockito.Mockito.timeout
 import org.mockito.Mockito.verify
 import org.mockito.kotlin.clearInvocations
+import org.mockito.kotlin.reset
+import org.mockito.kotlin.whenever
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.context.annotation.Import
+import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.security.test.context.support.WithMockUser
 import org.springframework.test.context.bean.override.mockito.MockitoBean
 import tools.jackson.databind.json.JsonMapper
 import tools.jackson.databind.node.ObjectNode
+import java.time.Duration
 
 @Import(TestcontainersConfiguration::class)
 @SpringBootTest(
@@ -42,9 +50,34 @@ class PostWebsubListenerIntegrationTest {
     @MockitoBean
     lateinit var websubPublisher: WebsubPublisher
 
+    @Autowired
+    lateinit var jdbcTemplate: JdbcTemplate
+
+    @Autowired
+    lateinit var resubmissionService: EventPublicationResubmissionService
+
     private val mapper = JsonMapper.builderWithJackson2Defaults().build()
 
+    @BeforeEach
+    fun awaitNoInFlightEvents() {
+        await().atMost(Duration.ofSeconds(2)).untilAsserted {
+            val count =
+                jdbcTemplate.queryForObject(
+                    "select count(*) from event_publication where status in ('PUBLISHED', 'PROCESSING', 'RESUBMITTED')",
+                    Int::class.java,
+                )
+            assertEquals(0, count)
+        }
+        clearInvocations(websubPublisher)
+    }
+
     private fun uniqueSlug(prefix: String): String = "$prefix-${System.nanoTime()}"
+
+    private fun failedEventCount(): Int =
+        jdbcTemplate.queryForObject(
+            "select count(*) from event_publication where status = 'FAILED'",
+            Int::class.java,
+        ) ?: 0
 
     private fun createPayload(
         content: String,
@@ -77,45 +110,48 @@ class PostWebsubListenerIntegrationTest {
     fun createPublishesForPublicPosts() {
         createPublicPost("Hello WebSub")
 
-        verify(websubPublisher, times(1)).publish()
+        verify(websubPublisher, timeout(2_000)).publish()
     }
 
     @Test
     fun createDoesNotPublishForDraftOrPrivatePosts() {
         val draftSlug = uniqueSlug("websub-draft")
         createService.create(createPayload("Draft", draftSlug, status = "draft"), null)
-        verify(websubPublisher, never()).publish()
+        verify(websubPublisher, after(1_000).never()).publish()
 
         val privateSlug = uniqueSlug("websub-private")
         createService.create(createPayload("Private", privateSlug, visibility = "private"), null)
-        verify(websubPublisher, never()).publish()
+        verify(websubPublisher, after(1_000).never()).publish()
     }
 
     @Test
     fun updatePublishesForPublicPosts() {
         val location = createPublicPost("Before")
+        awaitNoInFlightEvents()
         clearInvocations(websubPublisher)
 
         val response = updateService.update(updateJson(location, """"replace": {"content": ["After"]}"""))
         assertInstanceOf(ApiResponse.Success.NoContent::class.java, response)
 
-        verify(websubPublisher, times(1)).publish()
+        verify(websubPublisher, timeout(2_000)).publish()
     }
 
     @Test
     fun updateToPrivatePublishesBecauseTheFeedChanged() {
         val location = createPublicPost("Before")
+        awaitNoInFlightEvents()
         clearInvocations(websubPublisher)
 
         val response = updateService.update(updateJson(location, """"replace": {"visibility": ["private"]}"""))
         assertInstanceOf(ApiResponse.Success.NoContent::class.java, response)
 
-        verify(websubPublisher, times(1)).publish()
+        verify(websubPublisher, timeout(2_000)).publish()
     }
 
     @Test
     fun deleteAndUndeletePublish() {
         val location = createPublicPost("Hello WebSub")
+        awaitNoInFlightEvents()
         clearInvocations(websubPublisher)
 
         val deleteResponse = deleteService.delete(MicropubPayload.Json(mapper.createObjectNode().put("url", location)))
@@ -125,6 +161,24 @@ class PostWebsubListenerIntegrationTest {
             deleteService.undelete(MicropubPayload.Json(mapper.createObjectNode().put("url", location)))
         assertInstanceOf(ApiResponse.Success.NoContent::class.java, undeleteResponse)
 
-        verify(websubPublisher, times(2)).publish()
+        verify(websubPublisher, timeout(2_000).times(2)).publish()
+    }
+
+    @Test
+    fun failedListenerPublicationsAreRetried() {
+        whenever(websubPublisher.publish()).thenThrow(RuntimeException("hub unavailable"))
+
+        createPublicPost("Retry WebSub")
+
+        await().atMost(Duration.ofSeconds(2)).untilAsserted {
+            assertEquals(1, failedEventCount())
+        }
+
+        reset(websubPublisher)
+        resubmissionService.resubmit(Duration.ZERO)
+
+        verify(websubPublisher, timeout(2_000)).publish()
+        awaitNoInFlightEvents()
+        assertEquals(0, failedEventCount())
     }
 }

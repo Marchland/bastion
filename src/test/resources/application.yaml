@@ -49,6 +49,26 @@ spring:
   flyway:
     baseline-version: 0
     baseline-on-migrate: true
+  modulith:
+    events:
+      completion-mode: delete
+      republish-outstanding-events-on-restart: false
+      registry-trigger-annotation: org.springframework.modulith.events.ApplicationModuleListener
+      jdbc:
+        schema-initialization:
+          enabled: true
+      staleness:
+        check-interval: 1m
+        published: 5m
+        processing: 5m
+        resubmitted: 5m
+  task:
+    execution:
+      pool:
+        core-size: 2
+        max-size: 4
+        queue-capacity: 500
+      thread-name-prefix: bastion-events-
 
 jobrunr:
   background-job-server:

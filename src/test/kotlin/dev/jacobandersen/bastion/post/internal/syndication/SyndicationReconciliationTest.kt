@@ -11,20 +11,23 @@ import dev.jacobandersen.bastion.post.types.PostStatus
 import dev.jacobandersen.bastion.post.types.PostVisibility
 import dev.jacobandersen.microformats2.Mf2Object
 import dev.jacobandersen.microformats2.Mf2Value
+import org.awaitility.Awaitility.await
 import org.jobrunr.scheduling.JobScheduler
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.mockito.Mockito.timeout
 import org.mockito.kotlin.any
 import org.mockito.kotlin.clearInvocations
-import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.context.annotation.Import
 import org.springframework.test.context.bean.override.mockito.MockitoBean
+import java.time.Duration
+import java.util.UUID
 
 @Import(TestcontainersConfiguration::class)
 @SpringBootTest(
@@ -81,7 +84,7 @@ class SyndicationReconciliationTest {
         assertEquals("bridgy", record.targetUid)
         assertTrue(record.desired)
         assertNull(record.syndicatedUrl)
-        verify(jobScheduler, times(1)).enqueue<SyndicationService>(any())
+        verify(jobScheduler, timeout(2_000)).enqueue<SyndicationService>(any<UUID>(), any())
     }
 
     @Test
@@ -133,7 +136,7 @@ class SyndicationReconciliationTest {
             ),
         )
 
-        verify(jobScheduler, times(1)).enqueue<SyndicationService>(any())
+        verify(jobScheduler, timeout(2_000)).enqueue<SyndicationService>(any<UUID>(), any())
     }
 
     @Test
@@ -154,7 +157,9 @@ class SyndicationReconciliationTest {
 
         postCommandService.delete(DeletePostCommand(url = created.url, deleted = true))
 
-        assertNull(postSyndicationService.findByPostId(created.id).single().syndicatedUrl)
+        await().atMost(Duration.ofSeconds(2)).untilAsserted {
+            assertNull(postSyndicationService.findByPostId(created.id).single().syndicatedUrl)
+        }
     }
 
     @Test
@@ -184,6 +189,8 @@ class SyndicationReconciliationTest {
             ),
         )
 
-        assertTrue(postSyndicationService.findByPostId(created.id).isEmpty())
+        await().atMost(Duration.ofSeconds(2)).untilAsserted {
+            assertTrue(postSyndicationService.findByPostId(created.id).isEmpty())
+        }
     }
 }

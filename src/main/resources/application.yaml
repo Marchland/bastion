@@ -76,6 +76,26 @@ spring:
       hibernate:
         jdbc:
           time_zone: UTC
+  modulith:
+    events:
+      completion-mode: ${BASTION_EVENT_COMPLETION_MODE:delete}
+      republish-outstanding-events-on-restart: ${BASTION_EVENT_REPUBLISH_ON_RESTART:false}
+      registry-trigger-annotation: org.springframework.modulith.events.ApplicationModuleListener
+      jdbc:
+        schema-initialization:
+          enabled: true
+      staleness:
+        check-interval: ${BASTION_EVENT_STALENESS_CHECK_INTERVAL:1m}
+        published: ${BASTION_EVENT_STALENESS_PUBLISHED:5m}
+        processing: ${BASTION_EVENT_STALENESS_PROCESSING:5m}
+        resubmitted: ${BASTION_EVENT_STALENESS_RESUBMITTED:5m}
+  task:
+    execution:
+      pool:
+        core-size: ${BASTION_EVENT_EXECUTOR_CORE_SIZE:2}
+        max-size: ${BASTION_EVENT_EXECUTOR_MAX_SIZE:4}
+        queue-capacity: ${BASTION_EVENT_EXECUTOR_QUEUE_CAPACITY:500}
+      thread-name-prefix: bastion-events-
 
 jobrunr:
   background-job-server:
