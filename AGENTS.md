@@ -31,18 +31,29 @@ When updating this file, preserve this bar for all agents and keep entries conci
 - Module roots contain only `ModuleMetadata.kt` plus public named-interface packages. Everything implementation-only
   lives under `internal/`; named interfaces are direct children of the module root.
 - `post` public contracts:
-  - `post::post-commands`: `PostCommandService` and create/update/delete commands.
-  - `post::post-query`: authenticated/internal reads (`PostQueryService`, `PostStateView`).
-  - `post::post-metadata`: Micropub `q=config`/`q=properties` views.
+  - `post::post-commands`: `PostCommandService`, create/update/delete commands, and `PostPatch` (protocol-neutral
+    replace/add/remove/removeAll delta).
+  - `post::post-query`: authenticated/internal reads (`PostQueryService`, `PostStateView`). `list` returns state views;
+    protocol-specific projection (for example Micropub `q=source` property filtering) belongs in the adapter.
+  - `post::post-metadata`: protocol-neutral `PostTypeView`/`PostPropertyView` metadata. Micropub maps these to its
+    `q=config`/`q=properties` wire shape.
   - `post::post-syndication`: target definitions for Micropub.
   - `post::post-read`: public API reads.
-  - `post::post-events`, `post::post-types`, `post::post-url`.
+  - `post::post-events`, `post::post-types`.
+  - Post URL generation lives in `post/internal/url/PostUrlService`; it is not public.
+- `media` is a supporting module with only `media::media-storage` public. S3 configuration/client and upload
+  implementation stay in `media/internal`; the `/micropub/media` endpoint stays in Micropub because it uses Micropub
+  token scopes.
 - `micropub` has no public surface. Its `internal/command` and `internal/query` packages are protocol adapters over
-  post commands/queries/metadata/syndication.
-- `indieauth` exposes only `indieauth::indieauth-token-query`. Token exchange/refresh/revocation commands stay internal.
-- `webmention` exposes only `webmention::webmention-read`. Inbound and outbound commands stay internal.
+  post commands/queries/metadata/syndication plus `media::media-storage`. Post updates are sent as `PostPatch`; the
+  adapter does not merge the document itself.
+- `indieauth` exposes only `indieauth::indieauth-token-query`. `AccessTokenQueryService` resolves only tokens for the
+  configured Bastion identity. Token exchange/refresh/revocation commands stay internal.
+- `webmention` exposes only `webmention::webmention-read`. Inbound and outbound commands stay internal. It uses
+  `url::ContentUrlMatcher` for own-content checks, not `post::post-url`.
 - `api` exposes nothing; it depends only on `post::post-read` and `webmention::webmention-read`.
-- `config` exposes `config::config-security`; everything else is internal.
+- `config` exposes `config::config-security`; this includes the permissive `publicCorsConfigurationSource` used by
+  IndieAuth and Micropub. Everything else is internal. The Micropub multipart filter lives in Micropub, not `config`.
 - `PostReadService` owns public feed/lookup/tag/syndication read behavior, including query parsing, date ranges, and
   pagination validation. `api` controllers only translate HTTP params and map `PostView`/`PostLookup` to response DTOs.
 - `WebmentionReadService` owns webmention read views and per-post counts. `api` maps its views to response DTOs and does
@@ -84,7 +95,8 @@ When updating this file, preserve this bar for all agents and keep entries conci
   Profile claims come from static `bastion.indieauth.profile.*` config (`ProfileClaimService`); `email` needs both
   `profile` and `email` scopes. Default scopes include `email` (`IndieAuthConfig`).
 - Micropub token validation (`MicropubTokenValidator`) uses `AccessTokenQueryService` from
-  `indieauth::indieauth-token-query`; token commands stay inside IndieAuth.
+  `indieauth::indieauth-token-query`; the query service enforces the configured `bastion.indieauth.me`, so Micropub does
+  not read that config directly. Token commands stay inside IndieAuth.
 - Raw `state`/`code`/`access_token`/`refresh_token` values are never persisted - only their SHA-256 digests
   (`indieauth/internal/security/Tokens.kt`). PKCE is lenient for max client compat (deprecated): a missing `code_challenge`
   is accepted with a warning, S256-only when present, and the redemption enforces the conditional rule (no challenge
@@ -121,6 +133,6 @@ When updating this file, preserve this bar for all agents and keep entries conci
   `WebmentionService.reconcile`). Notifications are keyed to a post via `webmention_notifications.post_id`; a source
   URL that no longer matches the post retracts delivered notifications (fixes slug moves) and silently inactivates
   undelivered ones. `refresh` re-sends to delivered targets on updates; deletions only retract.
-- Self-webmentions are suppressed: `UrlService.isOwnContentUrl` (host + port match on `bastion.content.base-url`,
+- Self-webmentions are suppressed: `ContentUrlMatcher.isOwnContentUrl` (host + port match on `bastion.content.base-url`,
   lenient on scheme) filters targets in `WebmentionService.targetUrlsOf` plus a guard in `sendWebmention`, and
   `WebmentionController` rejects sources on the own content domain.
