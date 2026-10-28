@@ -1,11 +1,12 @@
 package dev.jacobandersen.bastion.webmention.internal.service
 
-import dev.jacobandersen.bastion.webmention.internal.service.WebmentionSubmissionLimiter.Companion.MAX_SUBMISSIONS_PER_SOURCE
-import dev.jacobandersen.bastion.webmention.internal.service.WebmentionSubmissionLimiter.Companion.PAIR_COOLDOWN
-import dev.jacobandersen.bastion.webmention.internal.service.WebmentionSubmissionLimiter.Companion.SOURCE_WINDOW
-import org.springframework.stereotype.Component
-import java.time.Duration
-import java.time.Instant
+import dev.jacobandersen.bastion.webmention.internal.config.WebmentionRateLimitProperties
+import io.github.bucket4j.BucketConfiguration
+import io.github.bucket4j.distributed.proxy.ProxyManager
+import org.springframework.stereotype.Service
+import java.nio.charset.StandardCharsets
+import java.security.MessageDigest
+import java.util.HexFormat
 
 /**
  * Guards the webmention receiver against submission flooding. The endpoint is
@@ -13,54 +14,53 @@ import java.time.Instant
  * asynchronous verification job, so a hostile client could otherwise grow both
  * without bound.
  *
- * Two limits are enforced: a single (source, target) pair is only accepted
- * once per [PAIR_COOLDOWN], and a single source URL may submit at most
- * [MAX_SUBMISSIONS_PER_SOURCE] times per [SOURCE_WINDOW].
+ * The buckets live in Redis, so the source window and pair cooldown are global
+ * across Bastion replicas. The pair is checked first so a duplicate pair does
+ * not consume a source token.
  */
-@Component
-class WebmentionSubmissionLimiter {
-    private data class SourceWindow(
-        val count: Int,
-        val expiresAt: Instant,
-    )
+@Service
+class WebmentionSubmissionLimiter(
+    private val proxyManager: ProxyManager<String>,
+    private val properties: WebmentionRateLimitProperties,
+) {
+    private val sourceConfiguration =
+        BucketConfiguration
+            .builder()
+            .addLimit { limit ->
+                limit
+                    .capacity(properties.sourceLimit)
+                    .refillIntervally(properties.sourceLimit, properties.sourceWindow)
+            }.build()
 
-    private val lock = Any()
-    private val pairCooldowns = LinkedHashMap<String, Instant>()
-    private val sourceSubmissions = LinkedHashMap<String, SourceWindow>()
+    private val pairConfiguration =
+        BucketConfiguration
+            .builder()
+            .addLimit { limit ->
+                limit
+                    .capacity(properties.pairLimit)
+                    .refillIntervally(properties.pairLimit, properties.pairCooldown)
+            }.build()
 
     fun allow(
         sourceUrl: String,
         targetUrl: String,
-        now: Instant = Instant.now(),
     ): Boolean {
-        synchronized(lock) {
-            evictExpired(now)
+        val pairBucket = proxyManager.getProxy(pairKey(sourceUrl, targetUrl)) { pairConfiguration }
+        if (!pairBucket.tryConsume(1)) return false
 
-            val pairKey = "$sourceUrl\u0000$targetUrl"
-            val pairLastSeen = pairCooldowns[pairKey]
-            if (pairLastSeen != null && pairLastSeen.isAfter(now)) return false
-
-            val window = sourceSubmissions[sourceUrl]
-            if (window != null && window.expiresAt.isAfter(now)) {
-                if (window.count >= MAX_SUBMISSIONS_PER_SOURCE) return false
-                sourceSubmissions[sourceUrl] = window.copy(count = window.count + 1)
-            } else {
-                sourceSubmissions[sourceUrl] = SourceWindow(count = 1, expiresAt = now.plus(SOURCE_WINDOW))
-            }
-
-            pairCooldowns[pairKey] = now.plus(PAIR_COOLDOWN)
-            return true
-        }
+        val sourceBucket = proxyManager.getProxy(sourceKey(sourceUrl)) { sourceConfiguration }
+        return sourceBucket.tryConsume(1)
     }
 
-    private fun evictExpired(now: Instant) {
-        pairCooldowns.entries.removeIf { !it.value.isAfter(now) }
-        sourceSubmissions.entries.removeIf { !it.value.expiresAt.isAfter(now) }
-    }
+    private fun sourceKey(sourceUrl: String): String = "${properties.keyPrefix}:source:${hash(sourceUrl)}"
 
-    companion object {
-        private val PAIR_COOLDOWN: Duration = Duration.ofSeconds(30)
-        private val SOURCE_WINDOW: Duration = Duration.ofHours(1)
-        private const val MAX_SUBMISSIONS_PER_SOURCE = 10
+    private fun pairKey(
+        sourceUrl: String,
+        targetUrl: String,
+    ): String = "${properties.keyPrefix}:pair:${hash("$sourceUrl\n$targetUrl")}"
+
+    private fun hash(value: String): String {
+        val digest = MessageDigest.getInstance("SHA-256").digest(value.toByteArray(StandardCharsets.UTF_8))
+        return HexFormat.of().formatHex(digest)
     }
 }
