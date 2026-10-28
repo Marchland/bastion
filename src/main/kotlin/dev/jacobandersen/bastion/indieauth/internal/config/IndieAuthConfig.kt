@@ -34,8 +34,6 @@ data class IndieAuthConfig(
     val purgeInterval: Duration = Duration.ofHours(1),
     /** How long a used or expired authorization-code row is retained before the purge job deletes it. */
     val codeRetention: Duration = Duration.ofDays(1),
-    /** The set of scopes Bastion is willing to grant; anything else is `invalid_scope`. */
-    val allowedScopes: Set<String> = DEFAULT_SCOPES,
     /** The browser UI host Bastion delegates the authentication screen to. */
     val herald: HeraldConfig = HeraldConfig(),
     /** GitHub identity-provider settings, the only provider shipped today. */
@@ -98,8 +96,4 @@ data class IndieAuthConfig(
          */
         val redirectUri: String = "",
     )
-
-    companion object {
-        val DEFAULT_SCOPES = setOf("profile", "email", "create", "update", "delete", "undelete", "media")
-    }
 }
