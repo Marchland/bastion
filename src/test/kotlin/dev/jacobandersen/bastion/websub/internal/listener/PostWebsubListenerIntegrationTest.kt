@@ -1,6 +1,7 @@
 package dev.jacobandersen.bastion.websub.internal.listener
 
 import dev.jacobandersen.bastion.TestcontainersConfiguration
+import dev.jacobandersen.bastion.config.internal.events.EventPublicationResubmissionService
 import dev.jacobandersen.bastion.micropub.internal.command.CreateService
 import dev.jacobandersen.bastion.micropub.internal.command.DeleteService
 import dev.jacobandersen.bastion.micropub.internal.command.UpdateService
@@ -16,6 +17,8 @@ import org.mockito.Mockito.after
 import org.mockito.Mockito.timeout
 import org.mockito.Mockito.verify
 import org.mockito.kotlin.clearInvocations
+import org.mockito.kotlin.reset
+import org.mockito.kotlin.whenever
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.context.annotation.Import
@@ -50,6 +53,9 @@ class PostWebsubListenerIntegrationTest {
     @Autowired
     lateinit var jdbcTemplate: JdbcTemplate
 
+    @Autowired
+    lateinit var resubmissionService: EventPublicationResubmissionService
+
     private val mapper = JsonMapper.builderWithJackson2Defaults().build()
 
     @BeforeEach
@@ -66,6 +72,12 @@ class PostWebsubListenerIntegrationTest {
     }
 
     private fun uniqueSlug(prefix: String): String = "$prefix-${System.nanoTime()}"
+
+    private fun failedEventCount(): Int =
+        jdbcTemplate.queryForObject(
+            "select count(*) from event_publication where status = 'FAILED'",
+            Int::class.java,
+        ) ?: 0
 
     private fun createPayload(
         content: String,
@@ -150,5 +162,23 @@ class PostWebsubListenerIntegrationTest {
         assertInstanceOf(ApiResponse.Success.NoContent::class.java, undeleteResponse)
 
         verify(websubPublisher, timeout(2_000).times(2)).publish()
+    }
+
+    @Test
+    fun failedListenerPublicationsAreRetried() {
+        whenever(websubPublisher.publish()).thenThrow(RuntimeException("hub unavailable"))
+
+        createPublicPost("Retry WebSub")
+
+        await().atMost(Duration.ofSeconds(2)).untilAsserted {
+            assertEquals(1, failedEventCount())
+        }
+
+        reset(websubPublisher)
+        resubmissionService.resubmit(Duration.ZERO)
+
+        verify(websubPublisher, timeout(2_000)).publish()
+        awaitNoInFlightEvents()
+        assertEquals(0, failedEventCount())
     }
 }
