@@ -3,11 +3,13 @@ package dev.jacobandersen.bastion.websub.internal.listener
 import dev.jacobandersen.bastion.post.events.PostChangeType
 import dev.jacobandersen.bastion.post.events.PostChangedEvent
 import dev.jacobandersen.bastion.websub.internal.WebsubPublisher
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
+import org.mockito.kotlin.whenever
 import java.time.Instant
 import java.util.UUID
 
@@ -74,5 +76,14 @@ class PostWebsubListenerTest {
         listener.on(event(wasFeedVisible = false, isFeedVisible = false, changeType = PostChangeType.DELETED))
 
         verify(publisher, never()).publish()
+    }
+
+    @Test
+    fun `publish failures propagate to the event registry`() {
+        whenever(publisher.publish()).thenThrow(RuntimeException("hub unavailable"))
+
+        assertThrows(RuntimeException::class.java) {
+            listener.on(event(wasFeedVisible = false, isFeedVisible = true))
+        }
     }
 }

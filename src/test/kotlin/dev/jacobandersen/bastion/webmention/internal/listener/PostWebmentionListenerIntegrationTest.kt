@@ -8,6 +8,7 @@ import dev.jacobandersen.bastion.micropub.internal.type.req.MicropubPayload
 import dev.jacobandersen.bastion.micropub.internal.type.resp.ApiResponse
 import dev.jacobandersen.bastion.webmention.internal.data.domain.WebmentionState
 import dev.jacobandersen.bastion.webmention.internal.data.repository.WebmentionNotificationRepository
+import org.awaitility.Awaitility.await
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Assertions.assertNull
@@ -18,6 +19,7 @@ import org.springframework.context.annotation.Import
 import org.springframework.security.test.context.support.WithMockUser
 import tools.jackson.databind.json.JsonMapper
 import tools.jackson.databind.node.ObjectNode
+import java.time.Duration
 
 @Import(TestcontainersConfiguration::class)
 @SpringBootTest(
@@ -76,11 +78,30 @@ class PostWebmentionListenerIntegrationTest {
         targetUrl: String,
     ): WebmentionState? = notificationRepository.findBySourceUrlAndTargetUrl(sourceUrl, targetUrl)?.state
 
+    private fun awaitState(
+        expected: WebmentionState?,
+        sourceUrl: String,
+        targetUrl: String,
+    ) {
+        await().atMost(Duration.ofSeconds(2)).untilAsserted {
+            assertEquals(expected, stateOf(sourceUrl, targetUrl))
+        }
+    }
+
+    private fun awaitNoState(
+        sourceUrl: String,
+        targetUrl: String,
+    ) {
+        await().during(Duration.ofMillis(500)).untilAsserted {
+            assertNull(stateOf(sourceUrl, targetUrl))
+        }
+    }
+
     @Test
     fun createTracksPublicPostTargetsAsActive() {
         val location = createPublicPost("Check out https://example.com/alpha now")
 
-        assertEquals(WebmentionState.ACTIVE, stateOf(location, "https://example.com/alpha"))
+        awaitState(WebmentionState.ACTIVE, location, "https://example.com/alpha")
     }
 
     @Test
@@ -88,7 +109,7 @@ class PostWebmentionListenerIntegrationTest {
         val slug = uniqueSlug("dispatch-draft")
         val draft = createService.create(createPayload("See https://example.com/draft", slug, status = "draft"), null)
         val draftLocation = (draft as ApiResponse.Success.Created).location
-        assertNull(stateOf(draftLocation, "https://example.com/draft"))
+        awaitNoState(draftLocation, "https://example.com/draft")
 
         val privateSlug = uniqueSlug("dispatch-private")
         val private =
@@ -97,12 +118,13 @@ class PostWebmentionListenerIntegrationTest {
                 null,
             )
         val privateLocation = (private as ApiResponse.Success.Created).location
-        assertNull(stateOf(privateLocation, "https://example.com/private"))
+        awaitNoState(privateLocation, "https://example.com/private")
     }
 
     @Test
     fun updateAddsNewTargetsAndRetractsRemovedTargets() {
         val location = createPublicPost("One https://example.com/alpha")
+        awaitState(WebmentionState.ACTIVE, location, "https://example.com/alpha")
 
         val response =
             updateService.update(
@@ -110,13 +132,14 @@ class PostWebmentionListenerIntegrationTest {
             )
         assertInstanceOf(ApiResponse.Success.NoContent::class.java, response)
 
-        assertEquals(WebmentionState.INACTIVE, stateOf(location, "https://example.com/alpha"))
-        assertEquals(WebmentionState.ACTIVE, stateOf(location, "https://example.com/beta"))
+        awaitState(WebmentionState.INACTIVE, location, "https://example.com/alpha")
+        awaitState(WebmentionState.ACTIVE, location, "https://example.com/beta")
     }
 
     @Test
     fun updateKeepsUnchangedTargetsActive() {
         val location = createPublicPost("One https://example.com/alpha")
+        awaitState(WebmentionState.ACTIVE, location, "https://example.com/alpha")
 
         val response =
             updateService.update(
@@ -124,12 +147,13 @@ class PostWebmentionListenerIntegrationTest {
             )
         assertInstanceOf(ApiResponse.Success.NoContent::class.java, response)
 
-        assertEquals(WebmentionState.ACTIVE, stateOf(location, "https://example.com/alpha"))
+        awaitState(WebmentionState.ACTIVE, location, "https://example.com/alpha")
     }
 
     @Test
     fun updateToPrivateInactivatesWithoutRetraction() {
         val location = createPublicPost("One https://example.com/alpha")
+        awaitState(WebmentionState.ACTIVE, location, "https://example.com/alpha")
 
         val response =
             updateService.update(
@@ -137,26 +161,26 @@ class PostWebmentionListenerIntegrationTest {
             )
         assertInstanceOf(ApiResponse.Success.NoContent::class.java, response)
 
-        assertEquals(WebmentionState.INACTIVE, stateOf(location, "https://example.com/alpha"))
+        awaitState(WebmentionState.INACTIVE, location, "https://example.com/alpha")
     }
 
     @Test
     fun deleteRetractsActiveTargetsAndUndeleteReactivates() {
         val location = createPublicPost("One https://example.com/alpha")
-        assertEquals(WebmentionState.ACTIVE, stateOf(location, "https://example.com/alpha"))
+        awaitState(WebmentionState.ACTIVE, location, "https://example.com/alpha")
 
         val deleteResponse =
             deleteService.delete(
                 MicropubPayload.Json(mapper.createObjectNode().put("url", location)),
             )
         assertInstanceOf(ApiResponse.Success.NoContent::class.java, deleteResponse)
-        assertEquals(WebmentionState.INACTIVE, stateOf(location, "https://example.com/alpha"))
+        awaitState(WebmentionState.INACTIVE, location, "https://example.com/alpha")
 
         val undeleteResponse =
             deleteService.undelete(
                 MicropubPayload.Json(mapper.createObjectNode().put("url", location)),
             )
         assertInstanceOf(ApiResponse.Success.NoContent::class.java, undeleteResponse)
-        assertEquals(WebmentionState.ACTIVE, stateOf(location, "https://example.com/alpha"))
+        awaitState(WebmentionState.ACTIVE, location, "https://example.com/alpha")
     }
 }

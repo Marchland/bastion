@@ -3,11 +3,8 @@ package dev.jacobandersen.bastion.websub.internal.listener
 import dev.jacobandersen.bastion.post.events.PostChangedEvent
 import dev.jacobandersen.bastion.websub.internal.WebsubPublisher
 import io.github.oshai.kotlinlogging.KotlinLogging
+import org.springframework.modulith.events.ApplicationModuleListener
 import org.springframework.stereotype.Component
-import org.springframework.transaction.annotation.Propagation
-import org.springframework.transaction.annotation.Transactional
-import org.springframework.transaction.event.TransactionPhase
-import org.springframework.transaction.event.TransactionalEventListener
 
 private val logger = KotlinLogging.logger {}
 
@@ -23,16 +20,11 @@ private val logger = KotlinLogging.logger {}
 class PostWebsubListener(
     private val websubPublisher: WebsubPublisher,
 ) {
-    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @ApplicationModuleListener
     fun on(event: PostChangedEvent) {
         if (!event.wasFeedVisible && !event.isFeedVisible) return
 
-        try {
-            logger.info { "Publishing WebSub for post ${event.postId} (${event.changeType})" }
-            websubPublisher.publish()
-        } catch (e: Exception) {
-            logger.error(e) { "Failed to publish WebSub for post ${event.postId}" }
-        }
+        logger.info { "Publishing WebSub for post ${event.postId} (${event.changeType})" }
+        websubPublisher.publish()
     }
 }

@@ -29,7 +29,10 @@ class SyndicationService(
     private val urlService: PostUrlService,
 ) {
     @Transactional
-    fun reconcile(postId: UUID) {
+    fun reconcile(
+        postId: UUID,
+        eventKey: String,
+    ) {
         val post = postService.findById(postId) ?: return
         val canonicalUrl = urlService.generatePostUrl(post)
 
@@ -41,13 +44,13 @@ class SyndicationService(
             }
 
             if (!record.desired) {
-                retractIfNeeded(post, record, target)
+                retractIfNeeded(post, record, target, eventKey)
                 postSyndicationService.remove(postId, record.targetUid)
                 return@forEach
             }
 
             if (!post.publiclyReachable) {
-                retractIfNeeded(post, record, target)
+                retractIfNeeded(post, record, target, eventKey)
                 return@forEach
             }
 
@@ -55,21 +58,21 @@ class SyndicationService(
             when {
                 record.syndicatedUrl == null -> {
                     if (target.supports(SyndicationAction.CREATE)) {
-                        enqueueCreate(post.id, target.uid)
+                        enqueueCreate(post, target.uid, eventKey)
                     }
                 }
 
                 sourceUrl != null && sourceUrl != canonicalUrl -> {
                     if (target.supports(SyndicationAction.DELETE) && target.supports(SyndicationAction.CREATE)) {
-                        enqueueRebase(post.id, target.uid, sourceUrl)
+                        enqueueRebase(post, target.uid, sourceUrl, eventKey)
                     } else {
-                        retractIfNeeded(post, record, target)
+                        retractIfNeeded(post, record, target, eventKey)
                     }
                 }
 
                 else -> {
                     if (target.supports(SyndicationAction.UPDATE)) {
-                        enqueueUpdate(post, target)
+                        enqueueUpdate(post, target, eventKey)
                     }
                 }
             }
@@ -80,45 +83,65 @@ class SyndicationService(
         post: Post,
         record: PostSyndicationEntity,
         target: SyndicationConfig.Target,
+        eventKey: String,
     ) {
         val sourceUrl = record.sourceUrl ?: urlService.generatePostUrl(post)
         if (record.syndicatedUrl != null && target.supports(SyndicationAction.DELETE)) {
-            enqueueDelete(post.id, target.uid, sourceUrl)
+            enqueueDelete(post, target.uid, sourceUrl, eventKey)
         }
         postSyndicationService.markRetracted(post.id, record.targetUid)
     }
 
     private fun enqueueCreate(
-        postId: UUID,
+        post: Post,
         targetUid: String,
+        eventKey: String,
     ) {
-        jobScheduler.enqueue<SyndicationService> { it.runCreateJob(postId, targetUid) }
+        jobScheduler.enqueue<SyndicationService>(jobId(post, targetUid, "create", eventKey)) {
+            it.runCreateJob(post.id, targetUid)
+        }
     }
 
     private fun enqueueDelete(
-        postId: UUID,
+        post: Post,
         targetUid: String,
         sourceUrl: String,
+        eventKey: String,
     ) {
-        jobScheduler.enqueue<SyndicationService> { it.runDeleteJob(postId, targetUid, sourceUrl) }
+        jobScheduler.enqueue<SyndicationService>(jobId(post, targetUid, "delete", eventKey)) {
+            it.runDeleteJob(post.id, targetUid, sourceUrl)
+        }
     }
 
     private fun enqueueRebase(
-        postId: UUID,
+        post: Post,
         targetUid: String,
         previousUrl: String,
+        eventKey: String,
     ) {
-        jobScheduler.enqueue<SyndicationService> { it.runRebaseJob(postId, targetUid, previousUrl) }
+        jobScheduler.enqueue<SyndicationService>(jobId(post, targetUid, "rebase", eventKey)) {
+            it.runRebaseJob(post.id, targetUid, previousUrl)
+        }
     }
 
     private fun enqueueUpdate(
         post: Post,
         target: SyndicationConfig.Target,
+        eventKey: String,
     ) {
         val canonicalUrl = urlService.generatePostUrl(post)
         val update = httpClient.serializeExcerptUpdate(post, canonicalUrl, config.effectiveMaxGraphemes(target))
-        jobScheduler.enqueue<SyndicationService> { it.runUpdateJob(post.id, target.uid, update) }
+        jobScheduler.enqueue<SyndicationService>(jobId(post, target.uid, "update", eventKey)) {
+            it.runUpdateJob(post.id, target.uid, update)
+        }
     }
+
+    private fun jobId(
+        post: Post,
+        targetUid: String,
+        action: String,
+        eventKey: String,
+    ): UUID = UUID.nameUUIDFromBytes("syndication:${post.id}:$targetUid:$action:$eventKey".toByteArray())
 
     @Job(retries = 0)
     fun runCreateJob(
