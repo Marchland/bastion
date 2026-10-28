@@ -1,6 +1,8 @@
-package dev.jacobandersen.bastion.micropub.internal.media
+package dev.jacobandersen.bastion.media.internal
 
 import com.github.slugify.Slugify
+import dev.jacobandersen.bastion.media.storage.MediaUploadRequest
+import dev.jacobandersen.bastion.media.storage.MediaUploadResult
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -12,7 +14,7 @@ import software.amazon.awssdk.services.s3.S3Client
 import software.amazon.awssdk.services.s3.model.PutObjectRequest
 import software.amazon.awssdk.services.s3.model.PutObjectResponse
 
-class FileUploadServiceTest {
+class S3MediaStorageTest {
     private val slugify =
         Slugify
             .builder()
@@ -23,10 +25,10 @@ class FileUploadServiceTest {
 
     private val s3Client = mock(S3Client::class.java)
     private val config =
-        BastionMediaConfiguration(
+        MediaConfiguration(
             baseUrl = "https://media.bastion.test/",
             s3 =
-                BastionMediaConfiguration.S3Configuration(
+                MediaConfiguration.S3Configuration(
                     accessKeyId = "access",
                     secretAccessKey = "secret",
                     endpoint = "https://s3.bastion.test",
@@ -35,7 +37,20 @@ class FileUploadServiceTest {
                 ),
         )
 
-    private val service = FileUploadService(slugify, s3Client, config)
+    private val service = S3MediaStorage(slugify, s3Client, config)
+
+    private fun upload(file: MockMultipartFile): MediaUploadResult =
+        file.inputStream.use { stream ->
+            service.upload(
+                MediaUploadRequest(
+                    originalFilename = file.originalFilename,
+                    fallbackName = file.name,
+                    contentType = file.contentType,
+                    size = file.size,
+                    content = stream,
+                ),
+            )
+        }
 
     @Test
     fun `uploads a file with a slugified unique name and returns its url`() {
@@ -47,11 +62,10 @@ class FileUploadServiceTest {
         ).thenReturn(PutObjectResponse.builder().build())
         val file = MockMultipartFile("photo", "Sunset Photo.jpg", "image/jpeg", byteArrayOf(1, 2, 3))
 
-        val result = service.upload(file)
+        val result = upload(file)
 
-        assertTrue(result is FileUploadResult.Success)
-        val success = result as FileUploadResult.Success
-        assertEquals("photo", success.name)
+        assertTrue(result is MediaUploadResult.Success)
+        val success = result as MediaUploadResult.Success
         assertTrue(success.url.startsWith("https://media.bastion.test/sunset-photo-"), success.url)
         assertTrue(success.url.endsWith(".jpg"), success.url)
     }
@@ -66,9 +80,9 @@ class FileUploadServiceTest {
         ).thenReturn(PutObjectResponse.builder().build())
         val file = MockMultipartFile("photo", null, "image/jpeg", byteArrayOf(1, 2, 3))
 
-        val result = service.upload(file)
+        val result = upload(file)
 
-        val success = result as FileUploadResult.Success
+        val success = result as MediaUploadResult.Success
         assertTrue(success.url.startsWith("https://media.bastion.test/photo-"), success.url)
         assertTrue(success.url.endsWith(".blob"), success.url)
     }
@@ -83,10 +97,10 @@ class FileUploadServiceTest {
         ).thenThrow(RuntimeException("s3 down"))
         val file = MockMultipartFile("photo", "a.jpg", "image/jpeg", byteArrayOf(1, 2, 3))
 
-        val result = service.upload(file)
+        val result = upload(file)
 
-        assertTrue(result is FileUploadResult.Failure)
-        assertEquals("s3 down", (result as FileUploadResult.Failure).error.message)
+        assertTrue(result is MediaUploadResult.Failure)
+        assertEquals("s3 down", (result as MediaUploadResult.Failure).error.message)
     }
 
     @Test
@@ -103,7 +117,7 @@ class FileUploadServiceTest {
         }
         val file = MockMultipartFile("photo", "image.png", null, byteArrayOf(1, 2, 3))
 
-        service.upload(file)
+        upload(file)
 
         assertEquals("image/png", captured!!.contentType())
     }

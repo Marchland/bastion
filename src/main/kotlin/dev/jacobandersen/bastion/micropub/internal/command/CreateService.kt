@@ -1,7 +1,8 @@
 package dev.jacobandersen.bastion.micropub.internal.command
 
-import dev.jacobandersen.bastion.micropub.internal.media.FileUploadResult
-import dev.jacobandersen.bastion.micropub.internal.media.FileUploadService
+import dev.jacobandersen.bastion.media.storage.MediaStorage
+import dev.jacobandersen.bastion.media.storage.MediaUploadRequest
+import dev.jacobandersen.bastion.media.storage.MediaUploadResult
 import dev.jacobandersen.bastion.micropub.internal.type.MicropubCommand
 import dev.jacobandersen.bastion.micropub.internal.type.req.MicropubPayload
 import dev.jacobandersen.bastion.micropub.internal.type.resp.ApiResponse
@@ -24,7 +25,7 @@ private val logger = KotlinLogging.logger {}
 @Service
 class CreateService(
     private val postCommandService: PostCommandService,
-    private val fileUploadService: FileUploadService,
+    private val mediaStorage: MediaStorage,
     private val commandResolver: MicropubCommandResolver,
 ) {
     @PreAuthorize("hasAuthority('CREATE')")
@@ -80,15 +81,28 @@ class CreateService(
     ): Mf2Object {
         if (file == null) return obj
 
-        return when (val result = fileUploadService.upload(file)) {
-            is FileUploadResult.Success -> {
-                logger.info { "File uploaded successfully" }
-                obj.addProperty(result.name, Mf2Value.String(result.url))
-            }
+        return file.inputStream.use { stream ->
+            when (
+                val result =
+                    mediaStorage.upload(
+                        MediaUploadRequest(
+                            originalFilename = file.originalFilename,
+                            fallbackName = file.name,
+                            contentType = file.contentType,
+                            size = file.size,
+                            content = stream,
+                        ),
+                    )
+            ) {
+                is MediaUploadResult.Success -> {
+                    logger.info { "File uploaded successfully" }
+                    obj.addProperty(file.name, Mf2Value.String(result.url))
+                }
 
-            is FileUploadResult.Failure -> {
-                logger.error(result.error) { "File upload failed" }
-                throw result.error
+                is MediaUploadResult.Failure -> {
+                    logger.error(result.error) { "File upload failed" }
+                    throw result.error
+                }
             }
         }
     }

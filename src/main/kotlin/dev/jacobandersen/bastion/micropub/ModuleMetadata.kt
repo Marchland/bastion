@@ -10,6 +10,7 @@ import org.springframework.modulith.PackageInfo
         "post::post-commands", "post::post-query", "post::post-metadata",
         "post::post-syndication", "post::post-types",
         "indieauth::indieauth-token-query",
+        "media::media-storage",
         "util", "config::config-security",
     ],
 )

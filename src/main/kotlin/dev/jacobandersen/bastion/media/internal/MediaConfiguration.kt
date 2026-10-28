@@ -1,9 +1,9 @@
-package dev.jacobandersen.bastion.micropub.internal.media
+package dev.jacobandersen.bastion.media.internal
 
 import org.springframework.boot.context.properties.ConfigurationProperties
 
 @ConfigurationProperties(prefix = "bastion.media")
-data class BastionMediaConfiguration(
+data class MediaConfiguration(
     val baseUrl: String,
     val s3: S3Configuration,
 ) {
