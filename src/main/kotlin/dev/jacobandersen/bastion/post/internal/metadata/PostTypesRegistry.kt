@@ -1,11 +1,12 @@
 package dev.jacobandersen.bastion.post.internal.metadata
 
+import dev.jacobandersen.bastion.post.metadata.PostTypeView
 import org.springframework.stereotype.Service
 
 /**
  * Single access point for the configured post types: validates the config
  * once at startup, exposes the known type names for query validation, and
- * renders the q=config `post-types` view with common properties merged in.
+ * returns protocol-neutral views with common properties merged in.
  */
 @Service
 class PostTypesRegistry(
@@ -22,14 +23,14 @@ class PostTypesRegistry(
 
     fun isKnownType(type: String): Boolean = type in knownTypes()
 
-    fun postTypesView(): List<Map<String, Any?>> =
+    fun postTypes(): List<PostTypeView> =
         config.postTypes.map { def ->
-            mapOf(
-                "type" to def.type,
-                "name" to def.name,
-                "h" to def.h,
-                "properties" to (config.commonProperties + def.properties),
-                "required-properties" to def.requiredProperties,
+            PostTypeView(
+                type = def.type,
+                name = def.name,
+                h = def.h,
+                properties = config.commonProperties + def.properties,
+                requiredProperties = def.requiredProperties,
             )
         }
 }

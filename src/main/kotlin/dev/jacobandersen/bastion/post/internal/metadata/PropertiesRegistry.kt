@@ -1,12 +1,13 @@
 package dev.jacobandersen.bastion.post.internal.metadata
 
 import dev.jacobandersen.bastion.post.internal.config.PropertiesConfig
+import dev.jacobandersen.bastion.post.metadata.PostPropertyView
 import org.springframework.stereotype.Service
 
 /**
  * Access point for the configured property metadata. Validates the config at
  * startup, including that every property referenced by the post-types config
- * is defined here, and renders the q=properties view.
+ * is defined here, and returns protocol-neutral views.
  */
 @Service
 class PropertiesRegistry(
@@ -27,18 +28,18 @@ class PropertiesRegistry(
         require(missing.isEmpty()) { "post-types reference undefined properties: $missing" }
     }
 
-    fun view(name: String): Map<String, Any?>? =
+    fun view(name: String): PostPropertyView? =
         byName[name]?.let { def ->
-            buildMap {
-                put("name", def.name)
-                put("hints", def.hints)
-                put("display-name", def.displayName)
-                if (def.options != null) put("options", def.options)
-                if (def.default != null) put("default", def.default)
-            }
+            PostPropertyView(
+                name = def.name,
+                displayName = def.displayName,
+                hints = def.hints,
+                options = def.options,
+                defaultValue = def.default,
+            )
         }
 
-    fun allViews(): List<Map<String, Any?>> = config.properties.mapNotNull { view(it.name) }
+    fun allViews(): List<PostPropertyView> = config.properties.mapNotNull { view(it.name) }
 
-    fun viewsFor(names: Collection<String>): List<Map<String, Any?>> = names.mapNotNull { view(it) }
+    fun viewsFor(names: Collection<String>): List<PostPropertyView> = names.mapNotNull { view(it) }
 }

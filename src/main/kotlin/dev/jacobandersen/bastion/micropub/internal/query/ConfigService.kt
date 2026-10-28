@@ -3,6 +3,7 @@ package dev.jacobandersen.bastion.micropub.internal.query
 import dev.jacobandersen.bastion.micropub.internal.controller.MICROPUB_MEDIA_PATH
 import dev.jacobandersen.bastion.micropub.internal.type.resp.ApiResponse
 import dev.jacobandersen.bastion.post.metadata.PostMetadataService
+import dev.jacobandersen.bastion.post.metadata.PostTypeView
 import dev.jacobandersen.bastion.post.syndication.SyndicationTargetQueryService
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
@@ -21,7 +22,16 @@ class ConfigService(
                     syndicationTargets.targets().map { target ->
                         mapOf("uid" to target.uid, "name" to target.name)
                     },
-                "post-types" to postMetadataService.postTypesView(),
+                "post-types" to postMetadataService.postTypes().map(::toWire),
             ),
+        )
+
+    private fun toWire(view: PostTypeView): Map<String, Any?> =
+        mapOf(
+            "type" to view.type,
+            "name" to view.name,
+            "h" to view.h,
+            "properties" to view.properties,
+            "required-properties" to view.requiredProperties,
         )
 }

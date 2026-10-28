@@ -119,7 +119,6 @@ class PostService(
     fun findPublicPosts(
         limit: Int,
         offset: Int,
-        requestedProperties: Array<String>? = null,
     ): List<Post> {
         require(offset % limit == 0) { "offset must be a multiple of limit" }
 
@@ -132,7 +131,7 @@ class PostService(
                 pageRequest,
             )
 
-        return results.content.map { filterPostFields(it.toDomain(), requestedProperties) }
+        return results.content.map { it.toDomain() }
     }
 
     /**
@@ -258,13 +257,4 @@ class PostService(
 
             cb.and(*predicates.toTypedArray())
         }
-
-    fun filterPostFields(
-        post: Post,
-        requestedProperties: Array<String>? = null,
-    ): Post {
-        if (requestedProperties == null) return post
-        val filtered = post.post.properties.filterKeys { it in requestedProperties }
-        return post.copy(post = post.post.copy(properties = filtered))
-    }
 }

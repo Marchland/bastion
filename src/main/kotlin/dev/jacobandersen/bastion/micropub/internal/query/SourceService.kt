@@ -80,11 +80,17 @@ class SourceService(
             return ApiResponse.Error.InvalidRequest(errorDescription = "offset must be an integer")
         }
 
-        val requestedProperties = params["properties"].takeUnless { it.isNullOrEmpty() }?.toList()
+        val requestedProperties = params["properties"].takeUnless { it.isNullOrEmpty() }?.toSet()
 
         val posts =
             try {
-                postQueryService.list(parsedLimit, parsedOffset, requestedProperties)
+                postQueryService.list(parsedLimit, parsedOffset).map { view ->
+                    if (requestedProperties == null) {
+                        view.post
+                    } else {
+                        view.post.copy(properties = view.post.properties.filterKeys { it in requestedProperties })
+                    }
+                }
             } catch (e: IllegalArgumentException) {
                 return ApiResponse.Error.InvalidRequest(errorDescription = e.message ?: "Invalid source query")
             }

@@ -3,7 +3,6 @@ package dev.jacobandersen.bastion.post.query
 import dev.jacobandersen.bastion.post.internal.model.Post
 import dev.jacobandersen.bastion.post.internal.store.PostService
 import dev.jacobandersen.bastion.post.internal.url.PostUrlService
-import dev.jacobandersen.microformats2.Mf2Object
 import org.springframework.stereotype.Service
 import java.util.UUID
 
@@ -32,8 +31,7 @@ class PostQueryService(
     fun list(
         limitArg: Int?,
         offsetArg: Int?,
-        properties: List<String>?,
-    ): List<Mf2Object> {
+    ): List<PostStateView> {
         val limit = limitArg ?: 10
         val offset = offsetArg ?: 0
 
@@ -43,9 +41,7 @@ class PostQueryService(
         require(offset >= 0) { "offset must be a non-negative integer" }
         require(offset % limit == 0) { "offset must be a multiple of limit ($offset % $limit != 0)" }
 
-        return postService
-            .findPublicPosts(limit, offset, properties?.toTypedArray())
-            .map { it.post }
+        return postService.findPublicPosts(limit, offset).map { it.toStateView() }
     }
 
     private fun Post.toStateView(): PostStateView =
