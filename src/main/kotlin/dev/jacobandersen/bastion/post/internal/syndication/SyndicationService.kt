@@ -5,11 +5,14 @@ import dev.jacobandersen.bastion.post.internal.model.Post
 import dev.jacobandersen.bastion.post.internal.store.PostService
 import dev.jacobandersen.bastion.post.internal.url.PostUrlService
 import dev.jacobandersen.bastion.util.HttpUtil
+import dev.jacobandersen.microformats2.firstText
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.jobrunr.jobs.annotations.Job
 import org.jobrunr.scheduling.JobScheduler
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.time.Duration
+import java.time.Instant
 import java.util.UUID
 
 private val logger = KotlinLogging.logger {}
@@ -31,10 +34,13 @@ class SyndicationService(
     @Transactional
     fun reconcile(
         postId: UUID,
-        eventKey: String,
+        forceUpdate: Boolean,
     ) {
         val post = postService.findById(postId) ?: return
         val canonicalUrl = urlService.generatePostUrl(post)
+        val currentUpdated = post.post.firstText("updated")
+        val now = Instant.now()
+        val staleBefore = now.minus(CLAIM_LEASE)
 
         postSyndicationService.findByPostId(postId).forEach { record ->
             val target = config.targetByUid(record.targetUid)
@@ -44,13 +50,20 @@ class SyndicationService(
             }
 
             if (!record.desired) {
-                retractIfNeeded(post, record, target, eventKey)
-                postSyndicationService.remove(postId, record.targetUid)
+                if (record.syndicatedUrl == null && record.pendingAction == null) {
+                    postSyndicationService.remove(postId, record.targetUid)
+                } else {
+                    retractIfNeeded(post, record, target, now, staleBefore)
+                }
                 return@forEach
             }
 
             if (!post.publiclyReachable) {
-                retractIfNeeded(post, record, target, eventKey)
+                retractIfNeeded(post, record, target, now, staleBefore)
+                return@forEach
+            }
+
+            if (record.pendingAction != null) {
                 return@forEach
             }
 
@@ -58,21 +71,26 @@ class SyndicationService(
             when {
                 record.syndicatedUrl == null -> {
                     if (target.supports(SyndicationAction.CREATE)) {
-                        enqueueCreate(post, target.uid, eventKey)
+                        val claimToken = postSyndicationService.claim(post.id, target.uid, "create", now, staleBefore) ?: return@forEach
+                        enqueueCreate(post, target.uid, claimToken)
                     }
                 }
 
                 sourceUrl != null && sourceUrl != canonicalUrl -> {
                     if (target.supports(SyndicationAction.DELETE) && target.supports(SyndicationAction.CREATE)) {
-                        enqueueRebase(post, target.uid, sourceUrl, eventKey)
+                        val claimToken = postSyndicationService.claim(post.id, target.uid, "rebase", now, staleBefore) ?: return@forEach
+                        enqueueRebase(post, target.uid, sourceUrl, claimToken)
                     } else {
-                        retractIfNeeded(post, record, target, eventKey)
+                        retractIfNeeded(post, record, target, now, staleBefore)
                     }
                 }
 
                 else -> {
-                    if (target.supports(SyndicationAction.UPDATE)) {
-                        enqueueUpdate(post, target, eventKey)
+                    if (target.supports(SyndicationAction.UPDATE) &&
+                        (forceUpdate || record.lastSyncedUpdated != currentUpdated)
+                    ) {
+                        val claimToken = postSyndicationService.claim(post.id, target.uid, "update", now, staleBefore) ?: return@forEach
+                        enqueueUpdate(post, target, claimToken)
                     }
                 }
             }
@@ -83,22 +101,24 @@ class SyndicationService(
         post: Post,
         record: PostSyndicationEntity,
         target: SyndicationConfig.Target,
-        eventKey: String,
+        now: Instant,
+        staleBefore: Instant,
     ) {
+        if (record.syndicatedUrl == null) return
+        if (!target.supports(SyndicationAction.DELETE)) return
+
+        val claimToken = postSyndicationService.claim(post.id, target.uid, "delete", now, staleBefore) ?: return
         val sourceUrl = record.sourceUrl ?: urlService.generatePostUrl(post)
-        if (record.syndicatedUrl != null && target.supports(SyndicationAction.DELETE)) {
-            enqueueDelete(post, target.uid, sourceUrl, eventKey)
-        }
-        postSyndicationService.markRetracted(post.id, record.targetUid)
+        enqueueDelete(post, target.uid, sourceUrl, claimToken)
     }
 
     private fun enqueueCreate(
         post: Post,
         targetUid: String,
-        eventKey: String,
+        claimToken: UUID,
     ) {
-        jobScheduler.enqueue<SyndicationService>(jobId(post, targetUid, "create", eventKey)) {
-            it.runCreateJob(post.id, targetUid)
+        jobScheduler.enqueue<SyndicationService>(claimToken) {
+            it.runCreateJob(post.id, targetUid, claimToken)
         }
     }
 
@@ -106,10 +126,10 @@ class SyndicationService(
         post: Post,
         targetUid: String,
         sourceUrl: String,
-        eventKey: String,
+        claimToken: UUID,
     ) {
-        jobScheduler.enqueue<SyndicationService>(jobId(post, targetUid, "delete", eventKey)) {
-            it.runDeleteJob(post.id, targetUid, sourceUrl)
+        jobScheduler.enqueue<SyndicationService>(claimToken) {
+            it.runDeleteJob(post.id, targetUid, sourceUrl, claimToken)
         }
     }
 
@@ -117,38 +137,37 @@ class SyndicationService(
         post: Post,
         targetUid: String,
         previousUrl: String,
-        eventKey: String,
+        claimToken: UUID,
     ) {
-        jobScheduler.enqueue<SyndicationService>(jobId(post, targetUid, "rebase", eventKey)) {
-            it.runRebaseJob(post.id, targetUid, previousUrl)
+        jobScheduler.enqueue<SyndicationService>(claimToken) {
+            it.runRebaseJob(post.id, targetUid, previousUrl, claimToken)
         }
     }
 
     private fun enqueueUpdate(
         post: Post,
         target: SyndicationConfig.Target,
-        eventKey: String,
+        claimToken: UUID,
     ) {
         val canonicalUrl = urlService.generatePostUrl(post)
         val update = httpClient.serializeExcerptUpdate(post, canonicalUrl, config.effectiveMaxGraphemes(target))
-        jobScheduler.enqueue<SyndicationService>(jobId(post, target.uid, "update", eventKey)) {
-            it.runUpdateJob(post.id, target.uid, update)
+        jobScheduler.enqueue<SyndicationService>(claimToken) {
+            it.runUpdateJob(post.id, target.uid, update, claimToken)
         }
     }
-
-    private fun jobId(
-        post: Post,
-        targetUid: String,
-        action: String,
-        eventKey: String,
-    ): UUID = UUID.nameUUIDFromBytes("syndication:${post.id}:$targetUid:$action:$eventKey".toByteArray())
 
     @Job(retries = 0)
     fun runCreateJob(
         postId: UUID,
         targetUid: String,
+        claimToken: UUID,
     ) {
         try {
+            val record = postSyndicationService.findByPostIdAndTargetUid(postId, targetUid)
+            if (record == null || record.pendingToken != claimToken) {
+                logger.warn { "Skipping syndication create for post $postId to target \"$targetUid\": claim no longer active" }
+                return
+            }
             val post = postService.findById(postId)
             if (post == null) {
                 logger.warn { "Skipping syndication create: post $postId no longer exists" }
@@ -175,8 +194,10 @@ class SyndicationService(
                     postSyndicationService.recordOutcome(
                         postId,
                         targetUid,
+                        claimToken,
                         result.location ?: canonicalUrl,
                         canonicalUrl,
+                        post.post.firstText("updated"),
                     )
                 }
 
@@ -186,6 +207,8 @@ class SyndicationService(
             }
         } catch (e: Exception) {
             logger.error(e) { "Syndication create to target \"$targetUid\" for post $postId failed unexpectedly" }
+        } finally {
+            postSyndicationService.clearPending(postId, targetUid, claimToken)
         }
     }
 
@@ -194,8 +217,14 @@ class SyndicationService(
         postId: UUID,
         targetUid: String,
         sourceUrl: String,
+        claimToken: UUID,
     ) {
         try {
+            val record = postSyndicationService.findByPostIdAndTargetUid(postId, targetUid)
+            if (record == null || record.pendingToken != claimToken) {
+                logger.warn { "Skipping syndication delete for post $postId to target \"$targetUid\": claim no longer active" }
+                return
+            }
             val target = config.targetByUid(targetUid)
             if (target == null) {
                 logger.warn { "Skipping syndication delete: unknown target \"$targetUid\"" }
@@ -209,6 +238,11 @@ class SyndicationService(
             when (val result = httpClient.sendDelete(target, sourceUrl)) {
                 is SyndicationSendResult.Success -> {
                     logger.info { "Syndication delete sent for post $postId to target \"$targetUid\" (HTTP ${result.statusCode})" }
+                    postSyndicationService.markRetracted(postId, targetUid, claimToken)
+                    val current = postSyndicationService.findByPostIdAndTargetUid(postId, targetUid)
+                    if (current != null && !current.desired) {
+                        postSyndicationService.remove(postId, targetUid)
+                    }
                 }
 
                 is SyndicationSendResult.Failure -> {
@@ -217,6 +251,8 @@ class SyndicationService(
             }
         } catch (e: Exception) {
             logger.error(e) { "Syndication delete to target \"$targetUid\" for post $postId failed unexpectedly" }
+        } finally {
+            postSyndicationService.clearPending(postId, targetUid, claimToken)
         }
     }
 
@@ -225,8 +261,14 @@ class SyndicationService(
         postId: UUID,
         targetUid: String,
         previousUrl: String,
+        claimToken: UUID,
     ) {
         try {
+            val record = postSyndicationService.findByPostIdAndTargetUid(postId, targetUid)
+            if (record == null || record.pendingToken != claimToken) {
+                logger.warn { "Skipping syndication rebase for post $postId to target \"$targetUid\": claim no longer active" }
+                return
+            }
             val post = postService.findById(postId)
             if (post == null) {
                 logger.warn { "Skipping syndication rebase: post $postId no longer exists" }
@@ -268,8 +310,10 @@ class SyndicationService(
                     postSyndicationService.recordOutcome(
                         postId,
                         targetUid,
+                        claimToken,
                         createResult.location ?: canonicalUrl,
                         canonicalUrl,
+                        post.post.firstText("updated"),
                     )
                 }
 
@@ -279,6 +323,8 @@ class SyndicationService(
             }
         } catch (e: Exception) {
             logger.error(e) { "Syndication rebase to target \"$targetUid\" for post $postId failed unexpectedly" }
+        } finally {
+            postSyndicationService.clearPending(postId, targetUid, claimToken)
         }
     }
 
@@ -287,8 +333,14 @@ class SyndicationService(
         postId: UUID,
         targetUid: String,
         update: SyndicationUpdate,
+        claimToken: UUID,
     ) {
         try {
+            val record = postSyndicationService.findByPostIdAndTargetUid(postId, targetUid)
+            if (record == null || record.pendingToken != claimToken) {
+                logger.warn { "Skipping syndication update for post $postId to target \"$targetUid\": claim no longer active" }
+                return
+            }
             val post = postService.findById(postId)
             if (post == null) {
                 logger.warn { "Skipping syndication update: post $postId no longer exists" }
@@ -308,6 +360,7 @@ class SyndicationService(
             when (val result = httpClient.sendUpdate(target, canonicalUrl, update)) {
                 is SyndicationSendResult.Success -> {
                     logger.info { "Syndication update sent for post $postId to target \"$targetUid\" (HTTP ${result.statusCode})" }
+                    postSyndicationService.recordSynced(postId, targetUid, claimToken, post.post.firstText("updated"))
                 }
 
                 is SyndicationSendResult.Failure -> {
@@ -316,6 +369,8 @@ class SyndicationService(
             }
         } catch (e: Exception) {
             logger.error(e) { "Syndication update to target \"$targetUid\" for post $postId failed unexpectedly" }
+        } finally {
+            postSyndicationService.clearPending(postId, targetUid, claimToken)
         }
     }
 
@@ -324,4 +379,8 @@ class SyndicationService(
         target: SyndicationConfig.Target,
         canonicalUrl: String,
     ) = SyndicationContentMapper.build(post, canonicalUrl, config.effectiveMaxGraphemes(target))
+
+    companion object {
+        private val CLAIM_LEASE: Duration = Duration.ofMinutes(5)
+    }
 }

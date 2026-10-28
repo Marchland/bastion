@@ -23,7 +23,7 @@ class PostSyndicationListenerTest {
                 isFeedVisible = true,
                 occurredAt = Instant.now(),
             )
-        whenever(syndicationService.reconcile(event.postId, event.occurredAt.toString()))
+        whenever(syndicationService.reconcile(event.postId, true))
             .thenThrow(RuntimeException("syndication failed"))
 
         assertThrows(RuntimeException::class.java) {
