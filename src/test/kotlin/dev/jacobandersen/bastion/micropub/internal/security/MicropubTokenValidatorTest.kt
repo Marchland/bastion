@@ -10,13 +10,13 @@ import org.mockito.Mockito.`when`
 import java.time.Instant
 
 class MicropubTokenValidatorTest {
-    private val expectedMe = "https://example.com"
+    private val me = "https://example.com"
 
     private val accessTokenService = mock(AccessTokenQueryService::class.java)
-    private val validator = MicropubTokenValidator(accessTokenService, expectedMe)
+    private val validator = MicropubTokenValidator(accessTokenService)
 
     private fun issued(
-        me: String = expectedMe,
+        me: String = this.me,
         clientId: String = "https://client.example",
         scope: List<String> = listOf("create"),
     ) = ValidatedAccessToken(me, clientId, scope, Instant.now(), Instant.now().plusSeconds(60))
@@ -27,7 +27,7 @@ class MicropubTokenValidatorTest {
 
         val auth = validator.validateToken("abc")
 
-        assertEquals(expectedMe, auth.getName())
+        assertEquals(me, auth.getName())
         assertEquals(
             listOf(MicropubTokenScope.CREATE, MicropubTokenScope.MEDIA),
             (auth.getDetails() as MicropubToken).scope,
@@ -39,20 +39,5 @@ class MicropubTokenValidatorTest {
         `when`(accessTokenService.resolve("abc")).thenReturn(null)
 
         assertThrows(IllegalArgumentException::class.java) { validator.validateToken("abc") }
-    }
-
-    @Test
-    fun `rejects a token for another identity`() {
-        `when`(accessTokenService.resolve("abc")).thenReturn(issued(me = "https://someone.else"))
-
-        assertThrows(IllegalArgumentException::class.java) { validator.validateToken("abc") }
-    }
-
-    @Test
-    fun `normalization accepts host case trailing slash and fragment differences`() {
-        `when`(accessTokenService.resolve("abc")).thenReturn(issued(me = "https://EXAMPLE.com/#frag"))
-
-        org.junit.jupiter.api.Assertions
-            .assertDoesNotThrow { validator.validateToken("abc") }
     }
 }
