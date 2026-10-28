@@ -1,4 +1,4 @@
-package dev.jacobandersen.bastion.config.internal
+package dev.jacobandersen.bastion.micropub.internal.security
 
 import org.springframework.boot.web.servlet.FilterRegistrationBean
 import org.springframework.context.annotation.Bean

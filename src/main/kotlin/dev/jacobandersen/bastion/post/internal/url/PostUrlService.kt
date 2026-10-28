@@ -1,22 +1,16 @@
-package dev.jacobandersen.bastion.post.url
+package dev.jacobandersen.bastion.post.internal.url
 
 import dev.jacobandersen.bastion.post.internal.model.Post
+import dev.jacobandersen.bastion.url.ContentUrlConfig
 import dev.jacobandersen.bastion.url.UrlNormalizer
 import jakarta.annotation.PostConstruct
-import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.stereotype.Service
 import java.net.URI
 
 @Service
-class UrlService(
-    val config: BastionContentUrlConfig,
+class PostUrlService(
+    val config: ContentUrlConfig,
 ) {
-    @ConfigurationProperties(prefix = "bastion.content")
-    data class BastionContentUrlConfig(
-        val baseUrl: String,
-        val pathPattern: String,
-    )
-
     @PostConstruct
     fun validatePathPattern() {
         if (!config.pathPattern.contains("{slug}")) {
@@ -84,15 +78,4 @@ class UrlService(
     }
 
     fun extractPostSlug(url: String): String? = extractPostRef(url)?.slug
-
-    /**
-     * Whether the URL points at this site's content domain (host + port match
-     * against `bastion.content.base-url`, lenient on scheme like
-     * [extractPostRef]). Used to suppress self-webmentions.
-     */
-    fun isOwnContentUrl(url: String): Boolean {
-        val urlAuthority = UrlNormalizer.authority(url) ?: return false
-        val baseAuthority = UrlNormalizer.authority(config.baseUrl) ?: return false
-        return urlAuthority.host == baseAuthority.host && urlAuthority.port == baseAuthority.port
-    }
 }

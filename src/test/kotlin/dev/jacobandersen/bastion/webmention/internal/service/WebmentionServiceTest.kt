@@ -3,7 +3,7 @@ package dev.jacobandersen.bastion.webmention.internal.service
 import dev.jacobandersen.bastion.post.query.PostStateView
 import dev.jacobandersen.bastion.post.types.PostStatus
 import dev.jacobandersen.bastion.post.types.PostVisibility
-import dev.jacobandersen.bastion.post.url.UrlService
+import dev.jacobandersen.bastion.url.ContentUrlMatcher
 import dev.jacobandersen.bastion.webmention.internal.WebmentionService
 import dev.jacobandersen.bastion.webmention.internal.config.WebmentionConfig
 import dev.jacobandersen.bastion.webmention.internal.data.domain.WebmentionNotification
@@ -37,12 +37,13 @@ class WebmentionServiceTest {
     private val postId = UUID.randomUUID()
     private val source = "https://bastion.test/2026/09/07/post"
     private val target = "https://example.com/a"
-    private val urlService =
-        mock(UrlService::class.java).apply {
+    private val contentUrlMatcher =
+        mock(ContentUrlMatcher::class.java).apply {
             `when`(isOwnContentUrl(org.mockito.ArgumentMatchers.anyString())).thenReturn(false)
         }
 
-    private val service = WebmentionService(jobScheduler, notificationService, endpointCacheService, httpClient, config, urlService)
+    private val service =
+        WebmentionService(jobScheduler, notificationService, endpointCacheService, httpClient, config, contentUrlMatcher)
 
     private fun entry(content: String): Mf2Object =
         Mf2Object(
@@ -272,7 +273,7 @@ class WebmentionServiceTest {
     @Test
     fun `reconcile skips targets on the own content domain`() {
         val own = "https://test.jacobandersen.dev/2026/01/01/other"
-        `when`(urlService.isOwnContentUrl(own)).thenReturn(true)
+        `when`(contentUrlMatcher.isOwnContentUrl(own)).thenReturn(true)
 
         service.reconcile(post(content = "see $target and $own"), refresh = true)
 
@@ -283,7 +284,7 @@ class WebmentionServiceTest {
     @Test
     fun `sendWebmention records terminal failure for self targets without sending`() {
         val own = "https://test.jacobandersen.dev/2026/01/01/other"
-        `when`(urlService.isOwnContentUrl(own)).thenReturn(true)
+        `when`(contentUrlMatcher.isOwnContentUrl(own)).thenReturn(true)
 
         service.sendWebmention(source, own)
 

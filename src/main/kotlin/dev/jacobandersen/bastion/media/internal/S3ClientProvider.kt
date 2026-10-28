@@ -1,4 +1,4 @@
-package dev.jacobandersen.bastion.micropub.internal.media
+package dev.jacobandersen.bastion.media.internal
 
 import org.springframework.context.annotation.Bean
 import org.springframework.stereotype.Component
@@ -11,7 +11,7 @@ import java.net.URI
 
 @Component
 class S3ClientProvider(
-    private val cfg: BastionMediaConfiguration,
+    private val cfg: MediaConfiguration,
 ) {
     @Bean
     fun amazonS3Client(): S3Client {

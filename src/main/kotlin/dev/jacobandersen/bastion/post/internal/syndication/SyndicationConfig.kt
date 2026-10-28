@@ -30,8 +30,6 @@ data class SyndicationConfig(
 
     fun targetByUid(uid: String): Target? = targets.firstOrNull { it.uid == uid }
 
-    fun syndicationTargets(): List<Map<String, String>> = targets.map { mapOf("uid" to it.uid, "name" to it.name) }
-
     fun targetsSupporting(
         uids: Collection<String>,
         action: SyndicationAction,

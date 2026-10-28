@@ -1,10 +1,12 @@
-package dev.jacobandersen.bastion.micropub.internal.media
+package dev.jacobandersen.bastion.media.internal
 
 import com.github.slugify.Slugify
+import dev.jacobandersen.bastion.media.storage.MediaStorage
+import dev.jacobandersen.bastion.media.storage.MediaUploadRequest
+import dev.jacobandersen.bastion.media.storage.MediaUploadResult
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.http.MediaTypeFactory
 import org.springframework.stereotype.Service
-import org.springframework.web.multipart.MultipartFile
 import software.amazon.awssdk.core.sync.RequestBody
 import software.amazon.awssdk.services.s3.S3Client
 import software.amazon.awssdk.services.s3.model.PutObjectRequest
@@ -13,16 +15,16 @@ import java.util.UUID
 private val logger = KotlinLogging.logger {}
 
 @Service
-class FileUploadService(
-    val slugify: Slugify,
-    val s3Client: S3Client,
-    val mediaConfiguration: BastionMediaConfiguration,
-) {
-    fun upload(file: MultipartFile): FileUploadResult {
+class S3MediaStorage(
+    private val slugify: Slugify,
+    private val s3Client: S3Client,
+    private val mediaConfiguration: MediaConfiguration,
+) : MediaStorage {
+    override fun upload(request: MediaUploadRequest): MediaUploadResult {
         val fileId = UUID.randomUUID().toString()
 
         val originalName =
-            file.originalFilename
+            request.originalFilename
                 ?.substringAfterLast('/')
                 ?.substringAfterLast('\\')
                 ?.takeIf { it.isNotBlank() }
@@ -37,13 +39,14 @@ class FileUploadService(
             originalName
                 ?.substringBeforeLast('.')
                 ?.takeIf { it.isNotBlank() }
-                ?: file.name
+                ?: request.fallbackName
+                ?: "file"
 
-        val safeStem = slugify.slugify(stem)
+        val safeStem = slugify.slugify(stem).ifBlank { "file" }
         val fileName = "$safeStem-$fileId.$fileExt"
 
         val contentType =
-            file.contentType?.takeIf { it.isNotBlank() }
+            request.contentType?.takeIf { it.isNotBlank() }
                 ?: originalName?.let { MediaTypeFactory.getMediaType(it).orElse(null)?.toString() }
 
         return try {
@@ -59,16 +62,14 @@ class FileUploadService(
                 requestBuilder.contentType(contentType)
             }
 
-            file.inputStream.use { stream ->
-                s3Client.putObject(
-                    requestBuilder.build(),
-                    RequestBody.fromInputStream(stream, file.size),
-                )
-            }
+            s3Client.putObject(
+                requestBuilder.build(),
+                RequestBody.fromInputStream(request.content, request.size),
+            )
 
-            FileUploadResult.Success(file.name, "${mediaConfiguration.baseUrl.trimEnd('/')}/$fileName")
+            MediaUploadResult.Success("${mediaConfiguration.baseUrl.trimEnd('/')}/$fileName")
         } catch (e: Exception) {
-            FileUploadResult.Failure(e)
+            MediaUploadResult.Failure(e)
         }
     }
 }

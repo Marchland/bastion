@@ -1,6 +1,6 @@
 package dev.jacobandersen.bastion.micropub.internal.controller
 
-import dev.jacobandersen.bastion.micropub.internal.media.MediaService
+import dev.jacobandersen.bastion.micropub.internal.media.MediaEndpointService
 import dev.jacobandersen.bastion.micropub.internal.type.resp.ApiResponse
 import dev.jacobandersen.bastion.micropub.internal.type.resp.toResponseEntity
 import org.springframework.http.MediaType
@@ -10,10 +10,12 @@ import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 import org.springframework.web.multipart.MultipartHttpServletRequest
 
+const val MICROPUB_MEDIA_PATH = "/micropub/media"
+
 @RestController
-@RequestMapping("/micropub/media")
+@RequestMapping(MICROPUB_MEDIA_PATH)
 class MediaController(
-    val service: MediaService,
+    private val service: MediaEndpointService,
 ) {
     @PostMapping(consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
     fun handle(request: MultipartHttpServletRequest): ResponseEntity<*> {

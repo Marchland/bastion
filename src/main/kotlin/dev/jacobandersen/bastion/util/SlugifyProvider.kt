@@ -1,4 +1,4 @@
-package dev.jacobandersen.bastion.url
+package dev.jacobandersen.bastion.util
 
 import com.github.slugify.Slugify
 import org.springframework.context.annotation.Bean

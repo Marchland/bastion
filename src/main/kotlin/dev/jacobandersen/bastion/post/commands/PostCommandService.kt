@@ -3,10 +3,11 @@ package dev.jacobandersen.bastion.post.commands
 import com.github.slugify.Slugify
 import dev.jacobandersen.bastion.post.internal.model.Post
 import dev.jacobandersen.bastion.post.internal.store.PostService
+import dev.jacobandersen.bastion.post.internal.store.applyPatch
 import dev.jacobandersen.bastion.post.internal.syndication.PostSyndicationService
 import dev.jacobandersen.bastion.post.internal.syndication.SyndicationAction
 import dev.jacobandersen.bastion.post.internal.syndication.SyndicationConfig
-import dev.jacobandersen.bastion.post.url.UrlService
+import dev.jacobandersen.bastion.post.internal.url.PostUrlService
 import dev.jacobandersen.bastion.util.StringUtil.excerpt
 import dev.jacobandersen.microformats2.Mf2Object
 import dev.jacobandersen.microformats2.firstText
@@ -23,7 +24,7 @@ class PostCommandService(
     private val postService: PostService,
     private val postSyndicationService: PostSyndicationService,
     private val syndicationConfig: SyndicationConfig,
-    private val urlService: UrlService,
+    private val urlService: PostUrlService,
 ) {
     @Transactional
     fun create(command: CreatePostCommand): PostCommandResult {
@@ -45,7 +46,7 @@ class PostCommandService(
     @Transactional
     fun update(command: UpdatePostCommand): PostCommandResult {
         val post = findByUrl(command.url)
-        val obj = command.post.withoutUntaggedCategory()
+        val obj = post.post.applyPatch(command.patch).withoutUntaggedCategory()
         val targetSlug =
             when {
                 command.requestedSlug == null || command.requestedSlug == post.slug -> post.slug
