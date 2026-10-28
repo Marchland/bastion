@@ -16,6 +16,4 @@ class SyndicationTargetQueryService(
         config.targets.map { target ->
             SyndicationTargetView(uid = target.uid, name = target.name)
         }
-
-    fun isKnownTarget(uid: String): Boolean = config.targetByUid(uid) != null
 }

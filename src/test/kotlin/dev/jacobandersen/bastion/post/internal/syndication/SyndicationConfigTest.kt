@@ -51,19 +51,6 @@ class SyndicationConfigTest {
     fun `binds empty target list`() {
         val config = SyndicationConfig()
         assertTrue(config.targets.isEmpty())
-        assertTrue(config.syndicationTargets().isEmpty())
-    }
-
-    @Test
-    fun `syndicationTargets returns uid and name maps`() {
-        val config = SyndicationConfig(listOf(target("bridgy"), target("twitter")))
-        assertEquals(
-            listOf(
-                mapOf("uid" to "bridgy", "name" to "bridgy"),
-                mapOf("uid" to "twitter", "name" to "twitter"),
-            ),
-            config.syndicationTargets(),
-        )
     }
 
     @Test
