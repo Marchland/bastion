@@ -18,6 +18,7 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.mockito.Mockito.timeout
+import org.mockito.Mockito.times
 import org.mockito.kotlin.any
 import org.mockito.kotlin.clearInvocations
 import org.mockito.kotlin.verify
@@ -67,6 +68,17 @@ class SyndicationReconciliationTest {
 
     private fun updatedPatch(content: String): PostPatch = PostPatch(replace = mapOf("content" to listOf(Mf2Value.String(content))))
 
+    private fun awaitPending(
+        postId: UUID,
+        action: String,
+    ) {
+        await().atMost(Duration.ofSeconds(2)).untilAsserted {
+            assertEquals(action, postSyndicationService.findByPostId(postId).single().pendingAction)
+        }
+    }
+
+    private fun tokenOf(postId: UUID): UUID = requireNotNull(postSyndicationService.findByPostId(postId).single().pendingToken)
+
     @Test
     fun `create records the desired target and enqueues creation`() {
         val result =
@@ -83,7 +95,8 @@ class SyndicationReconciliationTest {
         val record = postSyndicationService.findByPostId(result.id).single()
         assertEquals("bridgy", record.targetUid)
         assertTrue(record.desired)
-        assertNull(record.syndicatedUrl)
+        awaitPending(result.id, "create")
+        assertNull(postSyndicationService.findByPostId(result.id).single().syndicatedUrl)
         verify(jobScheduler, timeout(2_000)).enqueue<SyndicationService>(any<UUID>(), any())
     }
 
@@ -101,8 +114,9 @@ class SyndicationReconciliationTest {
             )
         whenever(httpClient.sendCreate(any(), any()))
             .thenReturn(SyndicationSendResult.Success(201, "https://brid.gy/copy/1"))
+        awaitPending(result.id, "create")
 
-        syndicationService.runCreateJob(result.id, "bridgy")
+        syndicationService.runCreateJob(result.id, "bridgy", tokenOf(result.id))
 
         val record = postSyndicationService.findByPostId(result.id).single()
         assertEquals("https://brid.gy/copy/1", record.syndicatedUrl)
@@ -123,7 +137,8 @@ class SyndicationReconciliationTest {
             )
         whenever(httpClient.sendCreate(any(), any()))
             .thenReturn(SyndicationSendResult.Success(201, "https://brid.gy/copy/1"))
-        syndicationService.runCreateJob(created.id, "bridgy")
+        awaitPending(created.id, "create")
+        syndicationService.runCreateJob(created.id, "bridgy", tokenOf(created.id))
         clearInvocations(jobScheduler)
 
         postCommandService.update(
@@ -153,9 +168,13 @@ class SyndicationReconciliationTest {
             )
         whenever(httpClient.sendCreate(any(), any()))
             .thenReturn(SyndicationSendResult.Success(201, "https://brid.gy/copy/1"))
-        syndicationService.runCreateJob(created.id, "bridgy")
+        awaitPending(created.id, "create")
+        syndicationService.runCreateJob(created.id, "bridgy", tokenOf(created.id))
 
         postCommandService.delete(DeletePostCommand(url = created.url, deleted = true))
+        awaitPending(created.id, "delete")
+        whenever(httpClient.sendDelete(any(), any())).thenReturn(SyndicationSendResult.Success(204, null))
+        syndicationService.runDeleteJob(created.id, "bridgy", created.url, tokenOf(created.id))
 
         await().atMost(Duration.ofSeconds(2)).untilAsserted {
             assertNull(postSyndicationService.findByPostId(created.id).single().syndicatedUrl)
@@ -176,7 +195,8 @@ class SyndicationReconciliationTest {
             )
         whenever(httpClient.sendCreate(any(), any()))
             .thenReturn(SyndicationSendResult.Success(201, "https://brid.gy/copy/1"))
-        syndicationService.runCreateJob(created.id, "bridgy")
+        awaitPending(created.id, "create")
+        syndicationService.runCreateJob(created.id, "bridgy", tokenOf(created.id))
 
         postCommandService.update(
             UpdatePostCommand(
@@ -188,9 +208,60 @@ class SyndicationReconciliationTest {
                 syndicationTargets = SyndicationTargetChange(replace = emptyList()),
             ),
         )
+        awaitPending(created.id, "delete")
+        whenever(httpClient.sendDelete(any(), any())).thenReturn(SyndicationSendResult.Success(204, null))
+        syndicationService.runDeleteJob(created.id, "bridgy", created.url, tokenOf(created.id))
 
         await().atMost(Duration.ofSeconds(2)).untilAsserted {
             assertTrue(postSyndicationService.findByPostId(created.id).isEmpty())
         }
+    }
+
+    @Test
+    fun `failed creation is retried by reconciliation`() {
+        val created =
+            postCommandService.create(
+                CreatePostCommand(
+                    post = entry("First body"),
+                    requestedSlug = "syndication-${System.nanoTime()}",
+                    status = PostStatus.PUBLISHED,
+                    visibility = PostVisibility.PUBLIC,
+                    syndicationTargetUids = listOf("bridgy"),
+                ),
+            )
+        awaitPending(created.id, "create")
+        clearInvocations(jobScheduler)
+
+        whenever(httpClient.sendCreate(any(), any()))
+            .thenReturn(SyndicationSendResult.Failure(500, "boom"))
+        syndicationService.runCreateJob(created.id, "bridgy", tokenOf(created.id))
+
+        syndicationService.reconcile(created.id, forceUpdate = false)
+
+        verify(jobScheduler, timeout(2_000)).enqueue<SyndicationService>(any<UUID>(), any())
+    }
+
+    @Test
+    fun `active claim suppresses duplicate dispatch`() {
+        val created =
+            postCommandService.create(
+                CreatePostCommand(
+                    post = entry("First body"),
+                    requestedSlug = "syndication-${System.nanoTime()}",
+                    status = PostStatus.PUBLISHED,
+                    visibility = PostVisibility.PUBLIC,
+                    syndicationTargetUids = listOf("bridgy"),
+                ),
+            )
+        awaitPending(created.id, "create")
+        whenever(httpClient.sendCreate(any(), any()))
+            .thenReturn(SyndicationSendResult.Success(201, "https://brid.gy/copy/1"))
+        syndicationService.runCreateJob(created.id, "bridgy", tokenOf(created.id))
+        clearInvocations(jobScheduler)
+
+        syndicationService.reconcile(created.id, forceUpdate = true)
+        syndicationService.reconcile(created.id, forceUpdate = true)
+
+        verify(jobScheduler, timeout(2_000).times(1)).enqueue<SyndicationService>(any<UUID>(), any())
     }
 }

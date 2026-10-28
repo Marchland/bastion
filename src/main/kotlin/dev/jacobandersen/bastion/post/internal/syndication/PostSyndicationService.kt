@@ -5,6 +5,7 @@ import dev.jacobandersen.bastion.post.internal.model.PostSyndication
 import dev.jacobandersen.bastion.post.internal.repository.PostSyndicationRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.time.Instant
 import java.util.UUID
 
 @Service
@@ -51,16 +52,74 @@ class PostSyndicationService(
             }
     }
 
+    /**
+     * Claims a dispatch operation for a post/target pair. Returns the claim
+     * token when the claim was acquired, or null when another operation is
+     * still in flight. Stale claims can be reclaimed after the lease expires.
+     */
+    @Transactional
+    fun claim(
+        postId: UUID,
+        targetUid: String,
+        action: String,
+        now: Instant,
+        staleBefore: Instant,
+    ): UUID? {
+        val token = UUID.randomUUID()
+        val claimed =
+            repository.claim(
+                postId = postId,
+                targetUid = targetUid,
+                action = action,
+                now = now,
+                staleBefore = staleBefore,
+                token = token,
+            ) == 1
+        return token.takeIf { claimed }
+    }
+
+    @Transactional
+    fun clearPending(
+        postId: UUID,
+        targetUid: String,
+        token: UUID,
+    ) {
+        repository.clearPending(postId, targetUid, token)
+    }
+
     @Transactional
     fun recordOutcome(
         postId: UUID,
         targetUid: String,
+        claimToken: UUID,
         syndicatedUrl: String,
         sourceUrl: String,
+        syncedUpdated: String?,
     ) {
         val entity = repository.findByPostIdAndTargetUid(postId, targetUid) ?: return
+        if (entity.pendingToken != claimToken) return
         entity.syndicatedUrl = syndicatedUrl
         entity.sourceUrl = sourceUrl
+        entity.lastSyncedUpdated = syncedUpdated
+        entity.pendingAction = null
+        entity.pendingSince = null
+        entity.pendingToken = null
+        repository.save(entity)
+    }
+
+    @Transactional
+    fun recordSynced(
+        postId: UUID,
+        targetUid: String,
+        claimToken: UUID,
+        syncedUpdated: String?,
+    ) {
+        val entity = repository.findByPostIdAndTargetUid(postId, targetUid) ?: return
+        if (entity.pendingToken != claimToken) return
+        entity.lastSyncedUpdated = syncedUpdated
+        entity.pendingAction = null
+        entity.pendingSince = null
+        entity.pendingToken = null
         repository.save(entity)
     }
 
@@ -72,15 +131,30 @@ class PostSyndicationService(
     fun markRetracted(
         postId: UUID,
         targetUid: String,
+        claimToken: UUID,
     ) {
         val entity = repository.findByPostIdAndTargetUid(postId, targetUid) ?: return
+        if (entity.pendingToken != claimToken) return
         entity.syndicatedUrl = null
         entity.sourceUrl = null
+        entity.lastSyncedUpdated = null
+        entity.pendingAction = null
+        entity.pendingSince = null
+        entity.pendingToken = null
         repository.save(entity)
     }
 
     @Transactional(readOnly = true)
     fun findByPostId(postId: UUID): List<PostSyndicationEntity> = repository.findByPostId(postId)
+
+    @Transactional(readOnly = true)
+    fun findByPostIdAndTargetUid(
+        postId: UUID,
+        targetUid: String,
+    ): PostSyndicationEntity? = repository.findByPostIdAndTargetUid(postId, targetUid)
+
+    @Transactional(readOnly = true)
+    fun findPostIdsForReconciliation(): List<UUID> = repository.findDistinctPostIds()
 
     /**
      * Published syndicated copies of a post, for readers such as the public API.

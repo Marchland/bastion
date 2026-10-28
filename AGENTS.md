@@ -81,11 +81,32 @@ When updating this file, preserve this bar for all agents and keep entries conci
   failed publications older than 2 minutes, up to 5 completion attempts. Publications at the attempt limit remain
   `FAILED` for actuator inspection.
 - `completion-mode=delete` keeps the event table bounded.
-- Syndication dispatch uses deterministic JobRunr IDs keyed by post id, target uid, action, and the event occurrence
-  timestamp, so concurrent or replayed deliveries of the same event dedupe. A syndication job that exhausts its retries
-  still needs the scaling-track periodic reconciliation.
+- Syndication dispatch uses claim tokens stored on `post_syndications`. Each claim becomes the JobRunr job ID, so the
+  event path and periodic reconciliation cannot dispatch the same operation concurrently. Claims expire after 5
+  minutes, and a recurring `syndication-reconciliation` job repairs failed, missing, or stale copies every 15 minutes
+  using `last_synced_updated`.
 - Async listener tests must await delivery with Awaitility or Mockito timeout. Integration tests can inspect
   `event_publication` for in-flight or `FAILED` rows; with `completion-mode=delete`, completed rows are removed.
+
+## Scaling and multi-instance
+
+- Bastion's HTTP tier is stateless: no sticky sessions, IndieAuth state and tokens in Postgres, media in S3, webmention
+  endpoint cache in Postgres. Multiple replicas can share one database behind a load balancer.
+- Webmention submission limiting is Redis-backed through Bucket4j. A dedicated Lettuce connection uses
+  `BASTION_REDIS_URI` and `BASTION_REDIS_DATABASE`, plus optional `BASTION_REDIS_USERNAME`,
+  `BASTION_REDIS_PASSWORD`, `BASTION_REDIS_SSL`, and `BASTION_REDIS_TIMEOUT`, so the 10-per-source-per-hour and
+  30-second pair limits are global across replicas. When Redis is shared, set a non-zero database number and keep the
+  `BASTION_WEBMENTION_RATE_LIMIT_KEY_PREFIX` namespace. Bucket keys expire through Redis TTL; there is no cleanup job.
+- JobRunr runs a background job server on every replica by default. `JOBRUNR_WORKER_COUNT` bounds per-replica worker
+  concurrency and `JOBRUNR_POLL_INTERVAL_SECONDS` controls polling. All recurring jobs use fixed IDs, so JobRunr runs
+  one occurrence cluster-wide. Decide whether the dashboard is exposed on one admin replica or disabled publicly.
+- Size Hikari for `replicas * pool-size` against Postgres `max_connections`.
+- A two-replica smoke test should verify: a post created on one replica processes its side effects, a replica killed
+  after commit is recovered by the other replica's staleness/resubmission path, the webmention limiter is global, and
+  syndication dispatch is not duplicated.
+- Observe failed event publications through the Modulith actuator/observability endpoints and JobRunr failures through
+  its dashboard or logs. Read projections for API composition remain deferred until Webmention or syndication becomes
+  remote.
 - Webmention reconciliation (`WebmentionService.reconcile`) is idempotent: it compares notifications by `post_id`,
   current source URL, and currently linked targets, then activates, retracts, or silently inactivates as needed.
 - WebSub pings when the public feed changes (`Post.isFeedVisible`: published + PUBLIC + not deleted). This includes
@@ -131,12 +152,20 @@ When updating this file, preserve this bar for all agents and keep entries conci
   target UIDs through `PostCommandService`. The config prefix remains `bastion.micropub.syndication.targets` for
   deployment compatibility.
 - `PostCommandService` syncs desired target rows (`post_syndications.desired`), and `PostChangedEvent` triggers
-  `PostSyndicationListener` -> `SyndicationService.reconcile`. The listener is `AFTER_COMMIT` with `REQUIRES_NEW`.
-- `post_syndications` also stores the canonical `source_url` of the held copy. Reconciliation creates missing copies,
-  sends excerpt updates for existing copies, rebases when the post URL moved, and retracts copies when the post is
-  deleted, non-public, or the target is no longer desired. `markRetracted` clears the held-copy state so repeated
-  events do not enqueue duplicate retractions.
-- Dispatch jobs are best-effort `@Job(retries = 0)` and never fail the post command. Non-public posts are never sent.
+  `PostSyndicationListener` -> `SyndicationService.reconcile(forceUpdate = true)`. The listener is an
+  `@ApplicationModuleListener`.
+- `post_syndications` stores the canonical `source_url`, `last_synced_updated`, and dispatch claim fields
+  (`pending_action`, `pending_since`, `pending_token`). Before enqueueing, `SyndicationService` claims the row and uses
+  the claim token as the JobRunr job ID, so the event path and periodic reconciliation cannot dispatch the same
+  operation concurrently. Jobs clear the claim in `finally`; claims older than 5 minutes can be reclaimed.
+- The recurring `syndication-reconciliation` JobRunr job runs every 15 minutes and reconciles each post with
+  `forceUpdate = false`, retrying missing, failed, or stale copies by comparing `last_synced_updated` with the post's
+  current `updated` value.
+- Reconciliation creates missing copies, sends excerpt updates for existing copies, rebases when the post URL moved, and
+  retracts copies when the post is deleted, non-public, or the target is no longer desired. `markRetracted` clears the
+  held-copy state; a row with `desired=false` and no held copy is removed on the next reconcile.
+- Dispatch jobs are best-effort `@Job(retries = 0)` and never fail the post command. The periodic reconciliation is the
+  retry path. Non-public posts are never sent.
 - The downstream copy is an excerpt plus permalink (`SyndicationContentMapper.kt`): notes send `{excerpt}\n\n{url}`,
   articles (`type == "article"`) send `{name}: {excerpt}\n\n{url}`. `maxGraphemes` counts grapheme clusters; the
   permalink is never dropped and `summary` is overwritten with the same text so full content cannot leak.
@@ -151,6 +180,10 @@ When updating this file, preserve this bar for all agents and keep entries conci
   `WebmentionService.reconcile`). Notifications are keyed to a post via `webmention_notifications.post_id`; a source
   URL that no longer matches the post retracts delivered notifications (fixes slug moves) and silently inactivates
   undelivered ones. `refresh` re-sends to delivered targets on updates; deletions only retract.
+- Submission limiting uses Bucket4j buckets in Redis: 10 per source per hour and a 30-second source/target pair
+  cooldown. The pair bucket is consumed first so a rejected duplicate pair does not spend a source token. Redis errors
+  propagate and fail the request closed rather than allowing unlimited submissions. Configure the connection with
+  `BASTION_REDIS_*`; use a non-zero `BASTION_REDIS_DATABASE` when sharing Redis.
 - Self-webmentions are suppressed: `ContentUrlMatcher.isOwnContentUrl` (host + port match on `bastion.content.base-url`,
   lenient on scheme) filters targets in `WebmentionService.targetUrlsOf` plus a guard in `sendWebmention`, and
   `WebmentionController` rejects sources on the own content domain.

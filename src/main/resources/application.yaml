@@ -31,6 +31,20 @@ bastion:
       redirect-uri: ${BASTION_INDIEAUTH_GITHUB_REDIRECT_URI:}
       authorize-url: ${BASTION_INDIEAUTH_GITHUB_AUTHORIZE_URL:https://github.com/login/oauth/authorize}
   webmention:
+    rate-limit:
+      source-limit: ${BASTION_WEBMENTION_RATE_LIMIT_SOURCE_LIMIT:10}
+      source-window: ${BASTION_WEBMENTION_RATE_LIMIT_SOURCE_WINDOW:1h}
+      pair-limit: ${BASTION_WEBMENTION_RATE_LIMIT_PAIR_LIMIT:1}
+      pair-cooldown: ${BASTION_WEBMENTION_RATE_LIMIT_PAIR_COOLDOWN:30s}
+      key-prefix: ${BASTION_WEBMENTION_RATE_LIMIT_KEY_PREFIX:bastion:webmention:rate-limit}
+      keep-after-refill: ${BASTION_WEBMENTION_RATE_LIMIT_KEEP_AFTER_REFILL:5m}
+      redis:
+        uri: ${BASTION_REDIS_URI:redis://localhost:6379}
+        database: ${BASTION_REDIS_DATABASE:0}
+        username: ${BASTION_REDIS_USERNAME:}
+        password: ${BASTION_REDIS_PASSWORD:}
+        ssl: ${BASTION_REDIS_SSL:false}
+        timeout: ${BASTION_REDIS_TIMEOUT:2s}
     retry-interval-minutes: ${BASTION_WEBMENTION_RETRY_INTERVAL_MINUTES:30}
     max-attempts: ${BASTION_WEBMENTION_MAX_ATTEMPTS:5}
     backoff-base-seconds: ${BASTION_WEBMENTION_BACKOFF_BASE_SECONDS:1800}
@@ -100,6 +114,8 @@ spring:
 jobrunr:
   background-job-server:
     enabled: ${JOBRUNR_BACKGROUND_JOB_SERVER:true}
+    worker-count: ${JOBRUNR_WORKER_COUNT:4}
+    poll-interval-in-seconds: ${JOBRUNR_POLL_INTERVAL_SECONDS:15}
   dashboard:
     enabled: ${JOBRUNR_DASHBOARD_ENABLE:true}
   database:

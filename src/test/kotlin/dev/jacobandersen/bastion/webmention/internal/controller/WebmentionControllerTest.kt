@@ -16,6 +16,8 @@ import org.junit.jupiter.api.Test
 import org.mockito.Mockito.mock
 import org.mockito.Mockito.verify
 import org.mockito.Mockito.`when`
+import org.mockito.kotlin.any
+import org.mockito.kotlin.whenever
 import org.springframework.http.MediaType
 import org.springframework.mock.web.MockMultipartFile
 import org.springframework.test.web.servlet.MockMvc
@@ -24,7 +26,6 @@ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import org.springframework.test.web.servlet.setup.MockMvcBuilders
-import java.time.Instant
 import java.util.UUID
 
 class WebmentionControllerTest {
@@ -49,7 +50,8 @@ class WebmentionControllerTest {
         contentUrlMatcher = mock(ContentUrlMatcher::class.java)
         jobScheduler = mock(JobScheduler::class.java)
         hostValidator = SourceHostValidator { it.startsWith("http://127.0.0.1") }
-        submissionLimiter = WebmentionSubmissionLimiter()
+        submissionLimiter = mock(WebmentionSubmissionLimiter::class.java)
+        whenever(submissionLimiter.allow(any(), any())).thenReturn(true)
 
         mockMvc =
             MockMvcBuilders
@@ -212,7 +214,7 @@ class WebmentionControllerTest {
 
     @Test
     fun `rejects a submission over the rate limit`() {
-        submissionLimiter.allow(sourceUrl, targetUrl, Instant.now())
+        whenever(submissionLimiter.allow(any(), any())).thenReturn(false)
 
         mockMvc
             .perform(

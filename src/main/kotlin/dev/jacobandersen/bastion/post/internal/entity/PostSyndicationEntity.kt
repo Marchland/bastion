@@ -29,6 +29,14 @@ class PostSyndicationEntity(
     var sourceUrl: String? = null,
     @Column(name = "desired", nullable = false)
     var desired: Boolean = true,
+    @Column(name = "pending_action", nullable = true)
+    var pendingAction: String? = null,
+    @Column(name = "pending_since", nullable = true)
+    var pendingSince: Instant? = null,
+    @Column(name = "pending_token", nullable = true)
+    var pendingToken: UUID? = null,
+    @Column(name = "last_synced_updated", nullable = true)
+    var lastSyncedUpdated: String? = null,
     @Column(name = "created_at_utc", nullable = false)
     var createdAtUtc: Instant = Instant.now(),
 ) {

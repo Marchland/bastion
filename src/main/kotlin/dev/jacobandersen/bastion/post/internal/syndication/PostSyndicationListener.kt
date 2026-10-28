@@ -10,6 +10,6 @@ class PostSyndicationListener(
 ) {
     @ApplicationModuleListener
     fun on(event: PostChangedEvent) {
-        syndicationService.reconcile(event.postId, event.occurredAt.toString())
+        syndicationService.reconcile(event.postId, forceUpdate = true)
     }
 }
