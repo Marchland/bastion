@@ -10,7 +10,7 @@ import org.springframework.modulith.PackageInfo
         "post::post-commands", "post::post-query", "post::post-metadata",
         "post::post-syndication", "post::post-types",
         "indieauth::indieauth-token-query",
-        "url", "config::config-security",
+        "url", "util", "config::config-security",
     ],
 )
 class ModuleMetadata
