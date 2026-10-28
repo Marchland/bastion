@@ -65,9 +65,27 @@ When updating this file, preserve this bar for all agents and keep entries conci
   `updatePost`, classifying delete/restore. The event is intentionally thin (`postId`, change type, before/after feed
   visibility); consumers load the latest post instead of applying an event delta, so duplicate or out-of-order delivery
   converges on current state.
-- Event listeners use `@TransactionalEventListener(AFTER_COMMIT)` plus `@Transactional(REQUIRES_NEW)`. The
-  `REQUIRES_NEW` is required: after-commit listeners still run with the completed transaction bound, so writes made
-  without a new transaction silently do not persist (and JobRunr enqueues can be lost).
+- Event listeners use `@ApplicationModuleListener`, which is async and includes `AFTER_COMMIT` plus
+  `REQUIRES_NEW`. The `REQUIRES_NEW` is required: after-commit listeners still run with the completed transaction bound,
+  so writes made without a new transaction silently do not persist (and JobRunr enqueues can be lost). Listener methods
+  must not catch exceptions; the event publication registry marks failures `FAILED` so the resubmission job can retry
+  them.
+- `spring-modulith-starter-jdbc` owns the `event_publication` table. Modulith's JDBC schema initializer creates it at
+  startup, like JobRunr owns its tables; do not add a Flyway migration. `ddl-auto: validate` does not see it.
+- `@EnableAsync` on `BastionApplication` is required for `@ApplicationModuleListener`. The `spring.task.execution` pool
+  is bounded so event bursts cannot create unbounded threads.
+- Multi-instance event recovery: `republish-outstanding-events-on-restart=false` prevents every replica from
+  republishing all incomplete publications during rolling deploys or autoscaling. The staleness monitor marks stuck
+  `PUBLISHED`, `PROCESSING`, and `RESUBMITTED` publications `FAILED`. The JobRunr recurring
+  `event-publication-resubmission` job has a fixed ID, so only one instance runs it per occurrence; it resubmits
+  failed publications older than 2 minutes, up to 5 completion attempts. Publications at the attempt limit remain
+  `FAILED` for actuator inspection.
+- `completion-mode=delete` keeps the event table bounded.
+- Syndication dispatch uses deterministic JobRunr IDs keyed by post id, target uid, action, and the event occurrence
+  timestamp, so concurrent or replayed deliveries of the same event dedupe. A syndication job that exhausts its retries
+  still needs the scaling-track periodic reconciliation.
+- Async listener tests must await delivery with Awaitility or Mockito timeout. Integration tests can inspect
+  `event_publication` for in-flight or `FAILED` rows; with `completion-mode=delete`, completed rows are removed.
 - Webmention reconciliation (`WebmentionService.reconcile`) is idempotent: it compares notifications by `post_id`,
   current source URL, and currently linked targets, then activates, retracts, or silently inactivates as needed.
 - WebSub pings when the public feed changes (`Post.isFeedVisible`: published + PUBLIC + not deleted). This includes
