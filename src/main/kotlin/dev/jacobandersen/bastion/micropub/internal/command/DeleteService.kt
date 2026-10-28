@@ -3,6 +3,7 @@ package dev.jacobandersen.bastion.micropub.internal.command
 import dev.jacobandersen.bastion.micropub.internal.type.req.MicropubPayload
 import dev.jacobandersen.bastion.micropub.internal.type.resp.ApiResponse
 import dev.jacobandersen.bastion.post.commands.DeletePostCommand
+import dev.jacobandersen.bastion.post.commands.PostCommandConflictException
 import dev.jacobandersen.bastion.post.commands.PostCommandException
 import dev.jacobandersen.bastion.post.commands.PostCommandService
 import org.springframework.security.access.prepost.PreAuthorize
@@ -32,6 +33,10 @@ class DeleteService(
         return try {
             postCommandService.delete(DeletePostCommand(url = url, deleted = delete))
             ApiResponse.Success.NoContent
+        } catch (e: PostCommandConflictException) {
+            ApiResponse.Error.InvalidRequest(
+                errorDescription = e.message ?: "The post was modified by another request. Reload it and retry.",
+            )
         } catch (e: PostCommandException) {
             ApiResponse.Error.InvalidRequest(errorDescription = e.message ?: "Invalid post command")
         }

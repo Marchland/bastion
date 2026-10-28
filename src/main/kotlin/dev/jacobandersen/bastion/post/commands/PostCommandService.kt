@@ -12,6 +12,7 @@ import dev.jacobandersen.bastion.util.StringUtil.excerpt
 import dev.jacobandersen.microformats2.Mf2Object
 import dev.jacobandersen.microformats2.firstText
 import io.github.oshai.kotlinlogging.KotlinLogging
+import org.springframework.dao.OptimisticLockingFailureException
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.util.UUID
@@ -63,6 +64,8 @@ class PostCommandService(
         val saved =
             try {
                 postService.updatePost(updated, obj)
+            } catch (e: OptimisticLockingFailureException) {
+                throw PostCommandConflictException("The post was modified by another request. Reload it and retry.")
             } catch (e: IllegalArgumentException) {
                 throw PostCommandException("Invalid published value: ${e.message}")
             }
@@ -77,6 +80,8 @@ class PostCommandService(
         val saved =
             try {
                 postService.updatePost(post.copy(deleted = command.deleted), post.post)
+            } catch (e: OptimisticLockingFailureException) {
+                throw PostCommandConflictException("The post was modified by another request. Reload it and retry.")
             } catch (e: IllegalArgumentException) {
                 throw PostCommandException("Invalid published value: ${e.message}")
             }
