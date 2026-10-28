@@ -45,6 +45,14 @@ data class PostCommandResult(
     val slugChanged: Boolean = false,
 )
 
-class PostCommandException(
+open class PostCommandException(
     message: String,
 ) : RuntimeException(message)
+
+/**
+ * The post changed between the caller reading it and the command being applied.
+ * Callers should reload the post and retry their change.
+ */
+class PostCommandConflictException(
+    message: String,
+) : PostCommandException(message)

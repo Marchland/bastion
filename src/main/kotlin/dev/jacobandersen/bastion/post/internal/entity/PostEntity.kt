@@ -12,6 +12,7 @@ import jakarta.persistence.GeneratedValue
 import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
 import jakarta.persistence.Table
+import jakarta.persistence.Version
 import org.hibernate.annotations.Generated
 import org.hibernate.annotations.JdbcTypeCode
 import org.hibernate.generator.EventType
@@ -40,25 +41,28 @@ class PostEntity(
     @Column(nullable = false)
     @JdbcTypeCode(SqlTypes.JSON)
     var post: Mf2Object,
+    @Version
+    @Column(nullable = false)
+    var version: Long? = null,
 ) {
-    @Generated(event = [EventType.INSERT, EventType.UPDATE])
+    @Generated(event = [EventType.INSERT])
     @Column(name = "h", nullable = false, insertable = false, updatable = false)
     var h: String? = null
 
-    @Generated(event = [EventType.INSERT, EventType.UPDATE])
+    @Generated(event = [EventType.INSERT])
     @Column(name = "type", nullable = true, insertable = false, updatable = false)
     var type: String? = null
 
-    @Generated(event = [EventType.INSERT, EventType.UPDATE])
+    @Generated(event = [EventType.INSERT])
     @Column(name = "categories", insertable = false, updatable = false)
     @JdbcTypeCode(SqlTypes.ARRAY)
     var categories: Array<String>? = null
 
-    @Generated(event = [EventType.INSERT, EventType.UPDATE])
+    @Generated(event = [EventType.INSERT])
     @Column(name = "created_at_utc", nullable = false, insertable = false, updatable = false)
     var createdAtUtc: Instant? = null
 
-    @Generated(event = [EventType.INSERT, EventType.UPDATE])
+    @Generated(event = [EventType.INSERT])
     @Column(name = "updated_at_utc", nullable = false, insertable = false, updatable = false)
     var updatedAtUtc: Instant? = null
 

@@ -4,6 +4,7 @@ import dev.jacobandersen.bastion.micropub.internal.type.MicropubCommand
 import dev.jacobandersen.bastion.micropub.internal.type.req.MicropubPayload
 import dev.jacobandersen.bastion.micropub.internal.type.req.MicropubUpdatePayload
 import dev.jacobandersen.bastion.micropub.internal.type.resp.ApiResponse
+import dev.jacobandersen.bastion.post.commands.PostCommandConflictException
 import dev.jacobandersen.bastion.post.commands.PostCommandException
 import dev.jacobandersen.bastion.post.commands.PostCommandService
 import dev.jacobandersen.bastion.post.commands.PostPatch
@@ -50,6 +51,10 @@ class UpdateService(
                         visibility = commands.visibility,
                         syndicationTargets = syndicationChange(update),
                     ),
+                )
+            } catch (e: PostCommandConflictException) {
+                return ApiResponse.Error.InvalidRequest(
+                    errorDescription = e.message ?: "The post was modified by another request. Reload it and retry.",
                 )
             } catch (e: PostCommandException) {
                 return ApiResponse.Error.InvalidRequest(errorDescription = e.message ?: "Invalid post command")

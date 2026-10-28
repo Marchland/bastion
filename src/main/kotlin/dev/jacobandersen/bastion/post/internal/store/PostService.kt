@@ -11,6 +11,7 @@ import dev.jacobandersen.bastion.post.types.PostTagFilter
 import dev.jacobandersen.bastion.post.types.PostVisibility
 import dev.jacobandersen.bastion.post.types.mf2Type
 import dev.jacobandersen.microformats2.Mf2Object
+import jakarta.persistence.EntityManager
 import jakarta.persistence.criteria.Predicate
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.data.domain.PageRequest
@@ -26,6 +27,7 @@ class PostService(
     val repository: PostRepository,
     private val postTimeService: PostTimeService,
     private val eventPublisher: ApplicationEventPublisher,
+    private val entityManager: EntityManager,
 ) {
     companion object {
         const val MAX_PAGE_SIZE = 100
@@ -96,7 +98,9 @@ class PostService(
         entity.deleted = post.deleted
         entity.post = stamped
 
-        val saved = repository.saveAndFlush(entity).toDomain()
+        repository.saveAndFlush(entity)
+        entityManager.refresh(entity)
+        val saved = entity.toDomain()
         val changeType =
             when {
                 !previous.deleted && saved.deleted -> PostChangeType.DELETED

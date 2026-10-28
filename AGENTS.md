@@ -58,6 +58,10 @@ When updating this file, preserve this bar for all agents and keep entries conci
   pagination validation. `api` controllers only translate HTTP params and map `PostView`/`PostLookup` to response DTOs.
 - `WebmentionReadService` owns webmention read views and per-post counts. `api` maps its views to response DTOs and does
   not import internal webmention types.
+- `PostEntity.version` is a JPA optimistic-lock column. `PostCommandService.update/delete` translate stale writes to
+  `PostCommandConflictException`; Micropub maps that to 400 `invalid_request` because Micropub clients do not
+  understand 409. Keep the command methods transactional so the entity is loaded and flushed in one persistence
+  context. Do not expose the version or ETag yet.
 
 ## Module events
 
