@@ -40,7 +40,8 @@ When updating this file, preserve this bar for all agents and keep entries conci
   - `post::post-syndication`: target definitions for Micropub.
   - `post::post-read`: public API reads.
   - `post::post-events`, `post::post-types`.
-  - Post URL generation lives in `post/internal/url/PostUrlService`; it is not public.
+  - Content URL generation lives in `url/ContentUrlService` and operates on slug/date primitives. The `url` module
+    has no post-domain dependency; `post/internal/url/PostUrlExtensions.kt` maps the `Post` domain to those primitives.
 - `media` is a supporting module with only `media::media-storage` public. S3 configuration/client and upload
   implementation stay in `media/internal`; the `/micropub/media` endpoint stays in Micropub because it uses Micropub
   token scopes.

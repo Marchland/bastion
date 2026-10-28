@@ -7,7 +7,8 @@ import dev.jacobandersen.bastion.post.internal.store.applyPatch
 import dev.jacobandersen.bastion.post.internal.syndication.PostSyndicationService
 import dev.jacobandersen.bastion.post.internal.syndication.SyndicationAction
 import dev.jacobandersen.bastion.post.internal.syndication.SyndicationConfig
-import dev.jacobandersen.bastion.post.internal.url.PostUrlService
+import dev.jacobandersen.bastion.post.internal.url.generatePostUrl
+import dev.jacobandersen.bastion.url.ContentUrlService
 import dev.jacobandersen.bastion.util.StringUtil.excerpt
 import dev.jacobandersen.microformats2.Mf2Object
 import dev.jacobandersen.microformats2.firstText
@@ -25,7 +26,7 @@ class PostCommandService(
     private val postService: PostService,
     private val postSyndicationService: PostSyndicationService,
     private val syndicationConfig: SyndicationConfig,
-    private val urlService: PostUrlService,
+    private val urlService: ContentUrlService,
 ) {
     @Transactional
     fun create(command: CreatePostCommand): PostCommandResult {
@@ -90,7 +91,7 @@ class PostCommandService(
 
     private fun findByUrl(url: String): Post {
         val slug =
-            urlService.extractPostSlug(url)
+            urlService.extractSlug(url)
                 ?: throw PostCommandException("Invalid URL for this Bastion instance: $url")
         return postService.findBySlug(slug) ?: throw PostCommandException("Post not found for URL: $url")
     }
