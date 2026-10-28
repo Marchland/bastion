@@ -3,7 +3,7 @@ package dev.jacobandersen.bastion.webmention.internal.controller
 import dev.jacobandersen.bastion.post.query.PostQueryResult
 import dev.jacobandersen.bastion.post.query.PostQueryService
 import dev.jacobandersen.bastion.post.query.PostStateView
-import dev.jacobandersen.bastion.post.url.UrlService
+import dev.jacobandersen.bastion.url.ContentUrlMatcher
 import dev.jacobandersen.bastion.webmention.internal.data.service.ReceivedWebmentionService
 import dev.jacobandersen.bastion.webmention.internal.http.SourceHostValidator
 import dev.jacobandersen.bastion.webmention.internal.service.WebmentionReceiverService
@@ -31,7 +31,7 @@ class WebmentionControllerTest {
     private lateinit var notificationService: ReceivedWebmentionService
     private lateinit var receiverService: WebmentionReceiverService
     private lateinit var postQueryService: PostQueryService
-    private lateinit var urlService: UrlService
+    private lateinit var contentUrlMatcher: ContentUrlMatcher
     private lateinit var jobScheduler: JobScheduler
     private lateinit var hostValidator: SourceHostValidator
     private lateinit var submissionLimiter: WebmentionSubmissionLimiter
@@ -46,7 +46,7 @@ class WebmentionControllerTest {
         notificationService = mock(ReceivedWebmentionService::class.java)
         receiverService = mock(WebmentionReceiverService::class.java)
         postQueryService = mock(PostQueryService::class.java)
-        urlService = mock(UrlService::class.java)
+        contentUrlMatcher = mock(ContentUrlMatcher::class.java)
         jobScheduler = mock(JobScheduler::class.java)
         hostValidator = SourceHostValidator { it.startsWith("http://127.0.0.1") }
         submissionLimiter = WebmentionSubmissionLimiter()
@@ -58,7 +58,7 @@ class WebmentionControllerTest {
                         notificationService = notificationService,
                         receiverService = receiverService,
                         postQueryService = postQueryService,
-                        urlService = urlService,
+                        contentUrlMatcher = contentUrlMatcher,
                         jobScheduler = jobScheduler,
                         hostValidator = hostValidator,
                         submissionLimiter = submissionLimiter,
@@ -198,7 +198,7 @@ class WebmentionControllerTest {
     @Test
     fun `rejects a source on the own content domain`() {
         val ownSource = "https://test.jacobandersen.dev/2026/01/01/other"
-        `when`(urlService.isOwnContentUrl(ownSource)).thenReturn(true)
+        `when`(contentUrlMatcher.isOwnContentUrl(ownSource)).thenReturn(true)
 
         mockMvc
             .perform(

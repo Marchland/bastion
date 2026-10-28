@@ -1,7 +1,7 @@
 package dev.jacobandersen.bastion.webmention.internal
 
 import dev.jacobandersen.bastion.post.query.PostStateView
-import dev.jacobandersen.bastion.post.url.UrlService
+import dev.jacobandersen.bastion.url.ContentUrlMatcher
 import dev.jacobandersen.bastion.url.UrlExtractor
 import dev.jacobandersen.bastion.util.HttpUtil
 import dev.jacobandersen.bastion.webmention.internal.config.WebmentionConfig
@@ -29,7 +29,7 @@ class WebmentionService(
     private val endpointCacheService: WebmentionEndpointCacheService,
     private val httpClient: WebmentionHttpClient,
     private val config: WebmentionConfig,
-    private val urlService: UrlService,
+    private val contentUrlMatcher: ContentUrlMatcher,
 ) {
     /**
      * Reconciles the outbound webmention notification state for a post against
@@ -109,7 +109,7 @@ class WebmentionService(
     ) {
         logger.info { "Sending webmention for $sourceUrl to $targetUrl..." }
 
-        if (urlService.isOwnContentUrl(targetUrl)) {
+        if (contentUrlMatcher.isOwnContentUrl(targetUrl)) {
             logger.info { "Skipping self-webmention to $targetUrl" }
             recordTerminalFailure(sourceUrl, targetUrl, "self webmention skipped")
             return
@@ -157,7 +157,7 @@ class WebmentionService(
 
     internal fun targetUrlsOf(obj: Mf2Object): Set<String> {
         val urls = UrlExtractor.distinctUrls(Mf2TextExtractor.extractText(obj))
-        return urls.filterNot(urlService::isOwnContentUrl).toSet()
+        return urls.filterNot(contentUrlMatcher::isOwnContentUrl).toSet()
     }
 
     private fun resolveEndpointForTarget(

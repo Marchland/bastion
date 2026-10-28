@@ -2,7 +2,7 @@ package dev.jacobandersen.bastion.webmention.internal.controller
 
 import dev.jacobandersen.bastion.post.query.PostQueryResult
 import dev.jacobandersen.bastion.post.query.PostQueryService
-import dev.jacobandersen.bastion.post.url.UrlService
+import dev.jacobandersen.bastion.url.ContentUrlMatcher
 import dev.jacobandersen.bastion.webmention.internal.data.service.ReceivedWebmentionService
 import dev.jacobandersen.bastion.webmention.internal.http.SourceHostValidator
 import dev.jacobandersen.bastion.webmention.internal.service.WebmentionReceiverService
@@ -32,7 +32,7 @@ class WebmentionController(
     private val notificationService: ReceivedWebmentionService,
     private val receiverService: WebmentionReceiverService,
     private val postQueryService: PostQueryService,
-    private val urlService: UrlService,
+    private val contentUrlMatcher: ContentUrlMatcher,
     private val jobScheduler: JobScheduler,
     private val hostValidator: SourceHostValidator,
     private val submissionLimiter: WebmentionSubmissionLimiter,
@@ -62,7 +62,7 @@ class WebmentionController(
         if (sourceUrl == targetUrl) {
             return invalidRequest("The source and target URLs must be different")
         }
-        if (urlService.isOwnContentUrl(sourceUrl)) {
+        if (contentUrlMatcher.isOwnContentUrl(sourceUrl)) {
             return invalidRequest("Self webmentions are not accepted")
         }
         if (hostValidator.isBlocked(sourceUrl)) {

@@ -5,9 +5,9 @@ import dev.jacobandersen.bastion.micropub.internal.type.req.MicropubPayload
 import dev.jacobandersen.bastion.micropub.internal.type.resp.ApiResponse
 import dev.jacobandersen.bastion.post.internal.model.Post
 import dev.jacobandersen.bastion.post.internal.store.PostService
+import dev.jacobandersen.bastion.post.internal.url.PostUrlService
 import dev.jacobandersen.bastion.post.types.PostStatus
 import dev.jacobandersen.bastion.post.types.PostVisibility
-import dev.jacobandersen.bastion.post.url.UrlService
 import dev.jacobandersen.microformats2.Mf2Object
 import dev.jacobandersen.microformats2.Mf2Value
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -36,7 +36,7 @@ class UpdateServiceTest {
     lateinit var postService: PostService
 
     @Autowired
-    lateinit var urlService: UrlService
+    lateinit var urlService: PostUrlService
 
     private val mapper = JsonMapper.builderWithJackson2Defaults().build()
 

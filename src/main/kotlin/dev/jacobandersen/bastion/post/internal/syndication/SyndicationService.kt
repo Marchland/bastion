@@ -3,7 +3,7 @@ package dev.jacobandersen.bastion.post.internal.syndication
 import dev.jacobandersen.bastion.post.internal.entity.PostSyndicationEntity
 import dev.jacobandersen.bastion.post.internal.model.Post
 import dev.jacobandersen.bastion.post.internal.store.PostService
-import dev.jacobandersen.bastion.post.url.UrlService
+import dev.jacobandersen.bastion.post.internal.url.PostUrlService
 import dev.jacobandersen.bastion.util.HttpUtil
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.jobrunr.jobs.annotations.Job
@@ -26,7 +26,7 @@ class SyndicationService(
     private val httpClient: SyndicationHttpClient,
     private val postSyndicationService: PostSyndicationService,
     private val postService: PostService,
-    private val urlService: UrlService,
+    private val urlService: PostUrlService,
 ) {
     @Transactional
     fun reconcile(postId: UUID) {

@@ -7,7 +7,7 @@ import org.springframework.modulith.PackageInfo
 @ApplicationModule(
     type = ApplicationModule.Type.CLOSED,
     allowedDependencies = [
-        "post::post-events", "post::post-query", "post::post-url",
+        "post::post-events", "post::post-query",
         "url", "util",
     ],
 )

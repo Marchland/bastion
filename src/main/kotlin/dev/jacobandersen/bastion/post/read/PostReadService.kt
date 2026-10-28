@@ -5,9 +5,9 @@ import dev.jacobandersen.bastion.post.internal.model.Post
 import dev.jacobandersen.bastion.post.internal.repository.PostRepository
 import dev.jacobandersen.bastion.post.internal.store.PostService
 import dev.jacobandersen.bastion.post.internal.syndication.PostSyndicationService
+import dev.jacobandersen.bastion.post.internal.url.PostUrlService
 import dev.jacobandersen.bastion.post.types.PostMf2Type
 import dev.jacobandersen.bastion.post.types.PostTagFilter
-import dev.jacobandersen.bastion.post.url.UrlService
 import dev.jacobandersen.microformats2.firstText
 import dev.jacobandersen.microformats2.htmls
 import dev.jacobandersen.microformats2.texts
@@ -31,7 +31,7 @@ class PostReadService(
     private val postRepository: PostRepository,
     private val postSyndicationService: PostSyndicationService,
     private val postTypesRegistry: PostTypesRegistry,
-    private val urlService: UrlService,
+    private val urlService: PostUrlService,
     private val zone: ZoneId,
 ) {
     fun feed(query: PostFeedQuery): List<PostView> {

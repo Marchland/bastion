@@ -1,17 +1,14 @@
-package dev.jacobandersen.bastion.post.url
+package dev.jacobandersen.bastion.post.internal.url
 
-import dev.jacobandersen.bastion.post.url.UrlService
-import dev.jacobandersen.bastion.post.url.UrlService.BastionContentUrlConfig
+import dev.jacobandersen.bastion.url.ContentUrlConfig
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
-import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
-class UrlServiceTest {
+class PostUrlServiceTest {
     private val service =
-        UrlService(
-            BastionContentUrlConfig(
+        PostUrlService(
+            ContentUrlConfig(
                 baseUrl = "https://test.jacobandersen.dev",
                 pathPattern = "{year}/{month}/{day}/{slug}",
             ),
@@ -80,8 +77,8 @@ class UrlServiceTest {
     @Test
     fun validatePathPatternRejectsMissingSlugPlaceholder() {
         val invalid =
-            UrlService(
-                BastionContentUrlConfig(
+            PostUrlService(
+                ContentUrlConfig(
                     baseUrl = "https://test.jacobandersen.dev",
                     pathPattern = "{year}/{month}/{day}",
                 ),
@@ -90,21 +87,5 @@ class UrlServiceTest {
         org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException::class.java) {
             invalid.validatePathPattern()
         }
-    }
-
-    @Test
-    fun identifiesOwnContentUrls() {
-        assertTrue(service.isOwnContentUrl("https://test.jacobandersen.dev/2026/09/02/my-slug"))
-        assertTrue(service.isOwnContentUrl("http://test.jacobandersen.dev/2026/09/02/my-slug"))
-        assertTrue(service.isOwnContentUrl("https://TEST.JACOBANDERSEN.DEV/2026/09/02/my-slug"))
-        assertTrue(service.isOwnContentUrl("https://test.jacobandersen.dev:443/2026/09/02/my-slug"))
-    }
-
-    @Test
-    fun rejectsForeignUrlsAsOwn() {
-        assertFalse(service.isOwnContentUrl("https://example.com/2026/09/02/my-slug"))
-        assertFalse(service.isOwnContentUrl("https://evil.test.jacobandersen.dev/2026/09/02/my-slug"))
-        assertFalse(service.isOwnContentUrl("https://test.jacobandersen.dev:8443/2026/09/02/my-slug"))
-        assertFalse(service.isOwnContentUrl("not a url"))
     }
 }

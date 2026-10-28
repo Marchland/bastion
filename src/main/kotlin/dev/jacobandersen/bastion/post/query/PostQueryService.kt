@@ -2,7 +2,7 @@ package dev.jacobandersen.bastion.post.query
 
 import dev.jacobandersen.bastion.post.internal.model.Post
 import dev.jacobandersen.bastion.post.internal.store.PostService
-import dev.jacobandersen.bastion.post.url.UrlService
+import dev.jacobandersen.bastion.post.internal.url.PostUrlService
 import dev.jacobandersen.microformats2.Mf2Object
 import org.springframework.stereotype.Service
 import java.util.UUID
@@ -15,7 +15,7 @@ import java.util.UUID
 @Service
 class PostQueryService(
     private val postService: PostService,
-    private val urlService: UrlService,
+    private val urlService: PostUrlService,
 ) {
     fun byUrl(url: String): PostQueryResult {
         val slug =
