@@ -6,11 +6,9 @@ import dev.jacobandersen.bastion.micropub.internal.type.req.MicropubUpdatePayloa
 import dev.jacobandersen.bastion.micropub.internal.type.resp.ApiResponse
 import dev.jacobandersen.bastion.post.commands.PostCommandException
 import dev.jacobandersen.bastion.post.commands.PostCommandService
+import dev.jacobandersen.bastion.post.commands.PostPatch
 import dev.jacobandersen.bastion.post.commands.SyndicationTargetChange
 import dev.jacobandersen.bastion.post.commands.UpdatePostCommand
-import dev.jacobandersen.bastion.post.query.PostQueryResult
-import dev.jacobandersen.bastion.post.query.PostQueryService
-import dev.jacobandersen.microformats2.Mf2Object
 import dev.jacobandersen.microformats2.Mf2Value
 import dev.jacobandersen.microformats2.plainTextOrNull
 import org.springframework.security.access.prepost.PreAuthorize
@@ -19,7 +17,6 @@ import org.springframework.stereotype.Service
 @Service
 class UpdateService(
     private val postCommandService: PostCommandService,
-    private val postQueryService: PostQueryService,
     private val commandResolver: MicropubCommandResolver,
 ) {
     @PreAuthorize("hasAuthority('UPDATE')")
@@ -37,54 +34,17 @@ class UpdateService(
             )
         }
 
-        val post =
-            when (val result = postQueryService.byUrl(update.url)) {
-                is PostQueryResult.Found -> {
-                    result.post
-                }
-
-                is PostQueryResult.Gone -> {
-                    result.post
-                }
-
-                is PostQueryResult.Invalid -> {
-                    return ApiResponse.Error.InvalidRequest(errorDescription = result.message)
-                }
-
-                PostQueryResult.NotFound -> {
-                    return ApiResponse.Error.InvalidRequest(errorDescription = "Post not found for URL: ${update.url}")
-                }
-            }
-
         val commands =
             commandResolver.resolve { key ->
                 update.replacements?.get(key) ?: update.additions?.get(key)
             } ?: return ApiResponse.Error.InvalidRequest(errorDescription = "Invalid command parameters in update")
-
-        var postObj = post.post
-
-        update.replacements?.forEach { (key, values) ->
-            if (!MicropubCommand.isCommandProperty(key)) {
-                postObj = if (values.isEmpty()) postObj.deleteProperty(key) else postObj.setProperty(key, values)
-            }
-        }
-
-        update.additions?.forEach { (key, values) ->
-            if (!MicropubCommand.isCommandProperty(key)) {
-                postObj = postObj.addProperty(key, values)
-            }
-        }
-
-        update.removals?.let { removals ->
-            postObj = applyRemovals(postObj, removals)
-        }
 
         val result =
             try {
                 postCommandService.update(
                     UpdatePostCommand(
                         url = update.url,
-                        post = postObj,
+                        patch = postPatch(update),
                         requestedSlug = commands.slug,
                         status = commands.status,
                         visibility = commands.visibility,
@@ -100,6 +60,29 @@ class UpdateService(
         } else {
             ApiResponse.Success.NoContent
         }
+    }
+
+    private fun postPatch(update: MicropubUpdatePayload): PostPatch {
+        val replace = update.replacements.orEmpty().filterKeys { !MicropubCommand.isCommandProperty(it) }
+        val add = update.additions.orEmpty().filterKeys { !MicropubCommand.isCommandProperty(it) }
+
+        var remove = emptyMap<String, List<Mf2Value>>()
+        var removeAll = emptySet<String>()
+        when (val removals = update.removals) {
+            is MicropubUpdatePayload.Removals.All -> {
+                removeAll = removals.properties.filterNot { MicropubCommand.isCommandProperty(it) }.toSet()
+            }
+
+            is MicropubUpdatePayload.Removals.Many -> {
+                remove = removals.properties.filterKeys { !MicropubCommand.isCommandProperty(it) }
+            }
+
+            null -> {
+                Unit
+            }
+        }
+
+        return PostPatch(replace = replace, add = add, remove = remove, removeAll = removeAll)
     }
 
     private fun syndicationChange(update: MicropubUpdatePayload): SyndicationTargetChange? {
@@ -133,21 +116,4 @@ class UpdateService(
         if (values == null) return null
         return values.mapNotNull { it.plainTextOrNull }.filter { it.isNotBlank() }
     }
-
-    private fun applyRemovals(
-        postObj: Mf2Object,
-        removals: MicropubUpdatePayload.Removals,
-    ): Mf2Object =
-        when (removals) {
-            is MicropubUpdatePayload.Removals.All -> {
-                removals.properties.fold(postObj) { current, property -> current.deleteProperty(property) }
-            }
-
-            is MicropubUpdatePayload.Removals.Many -> {
-                removals.properties.entries.fold(postObj) { current, (key, values) ->
-                    val remaining = current.getProperty(key).filter { it !in values }
-                    if (remaining.isNotEmpty()) current.setProperty(key, remaining) else current.deleteProperty(key)
-                }
-            }
-        }
 }

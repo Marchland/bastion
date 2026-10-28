@@ -23,7 +23,7 @@ data class SyndicationTargetChange(
 
 data class UpdatePostCommand(
     val url: String,
-    val post: Mf2Object,
+    val patch: PostPatch,
     val requestedSlug: String?,
     val status: PostStatus?,
     val visibility: PostVisibility?,

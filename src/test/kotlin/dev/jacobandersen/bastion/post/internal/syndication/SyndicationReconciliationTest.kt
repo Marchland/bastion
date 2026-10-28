@@ -4,11 +4,9 @@ import dev.jacobandersen.bastion.TestcontainersConfiguration
 import dev.jacobandersen.bastion.post.commands.CreatePostCommand
 import dev.jacobandersen.bastion.post.commands.DeletePostCommand
 import dev.jacobandersen.bastion.post.commands.PostCommandService
+import dev.jacobandersen.bastion.post.commands.PostPatch
 import dev.jacobandersen.bastion.post.commands.SyndicationTargetChange
 import dev.jacobandersen.bastion.post.commands.UpdatePostCommand
-import dev.jacobandersen.bastion.post.query.PostQueryResult
-import dev.jacobandersen.bastion.post.query.PostQueryService
-import dev.jacobandersen.bastion.post.query.PostStateView
 import dev.jacobandersen.bastion.post.types.PostStatus
 import dev.jacobandersen.bastion.post.types.PostVisibility
 import dev.jacobandersen.microformats2.Mf2Object
@@ -51,9 +49,6 @@ class SyndicationReconciliationTest {
     @Autowired
     lateinit var syndicationService: SyndicationService
 
-    @Autowired
-    lateinit var postQueryService: PostQueryService
-
     @MockitoBean
     lateinit var jobScheduler: JobScheduler
 
@@ -67,12 +62,7 @@ class SyndicationReconciliationTest {
             children = null,
         )
 
-    private fun currentPost(url: String): PostStateView = (postQueryService.byUrl(url) as PostQueryResult.Found).post
-
-    private fun updatedEntry(
-        url: String,
-        content: String,
-    ): Mf2Object = currentPost(url).post.setProperty("content", listOf(Mf2Value.String(content)))
+    private fun updatedPatch(content: String): PostPatch = PostPatch(replace = mapOf("content" to listOf(Mf2Value.String(content))))
 
     @Test
     fun `create records the desired target and enqueues creation`() {
@@ -136,7 +126,7 @@ class SyndicationReconciliationTest {
         postCommandService.update(
             UpdatePostCommand(
                 url = created.url,
-                post = updatedEntry(created.url, "Updated body"),
+                patch = updatedPatch("Updated body"),
                 requestedSlug = null,
                 status = null,
                 visibility = null,
@@ -186,7 +176,7 @@ class SyndicationReconciliationTest {
         postCommandService.update(
             UpdatePostCommand(
                 url = created.url,
-                post = updatedEntry(created.url, "Updated body"),
+                patch = updatedPatch("Updated body"),
                 requestedSlug = null,
                 status = null,
                 visibility = null,

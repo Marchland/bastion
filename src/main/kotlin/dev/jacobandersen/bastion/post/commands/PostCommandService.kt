@@ -3,6 +3,7 @@ package dev.jacobandersen.bastion.post.commands
 import com.github.slugify.Slugify
 import dev.jacobandersen.bastion.post.internal.model.Post
 import dev.jacobandersen.bastion.post.internal.store.PostService
+import dev.jacobandersen.bastion.post.internal.store.applyPatch
 import dev.jacobandersen.bastion.post.internal.syndication.PostSyndicationService
 import dev.jacobandersen.bastion.post.internal.syndication.SyndicationAction
 import dev.jacobandersen.bastion.post.internal.syndication.SyndicationConfig
@@ -45,7 +46,7 @@ class PostCommandService(
     @Transactional
     fun update(command: UpdatePostCommand): PostCommandResult {
         val post = findByUrl(command.url)
-        val obj = command.post.withoutUntaggedCategory()
+        val obj = post.post.applyPatch(command.patch).withoutUntaggedCategory()
         val targetSlug =
             when {
                 command.requestedSlug == null || command.requestedSlug == post.slug -> post.slug
