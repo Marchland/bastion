@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.37](https://github.com/jacobsandersen/bastion/compare/v1.3.36...v1.3.37) (2026-10-29)
+
+
+### Bug Fixes
+
+* **ci:** pass image inputs when triggering release builds ([#101](https://github.com/jacobsandersen/bastion/issues/101)) ([d68f480](https://github.com/jacobsandersen/bastion/commit/d68f480d9faa16e768c588a62cf726aa9757251e))
+
 ## [1.3.36](https://github.com/jacobsandersen/bastion/compare/v1.3.35...v1.3.36) (2026-10-29)
 
 
