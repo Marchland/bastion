@@ -5,9 +5,10 @@ import dev.jacobandersen.bastion.micropub.internal.type.MicropubCommand
 import dev.jacobandersen.bastion.micropub.internal.type.req.MicropubPayload
 import dev.jacobandersen.bastion.micropub.internal.type.resp.ApiResponse
 import dev.jacobandersen.bastion.post.internal.store.PostService
-import dev.jacobandersen.bastion.post.internal.url.PostUrlService
+import dev.jacobandersen.bastion.post.internal.url.generatePostUrl
 import dev.jacobandersen.bastion.post.types.PostStatus
 import dev.jacobandersen.bastion.post.types.PostVisibility
+import dev.jacobandersen.bastion.url.ContentUrlService
 import dev.jacobandersen.microformats2.Mf2Value
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertInstanceOf
@@ -33,7 +34,7 @@ class CreateServiceTest {
     lateinit var postService: PostService
 
     @Autowired
-    lateinit var urlService: PostUrlService
+    lateinit var urlService: ContentUrlService
 
     private val mapper = JsonMapper.builderWithJackson2Defaults().build()
 
@@ -89,7 +90,7 @@ class CreateServiceTest {
             )
 
         assertInstanceOf(ApiResponse.Success.Created::class.java, response)
-        val slug = urlService.extractPostSlug((response as ApiResponse.Success.Created).location)!!
+        val slug = urlService.extractSlug((response as ApiResponse.Success.Created).location)!!
         val post = postService.findBySlug(slug)!!
         assertEquals(PostStatus.PUBLISHED, post.status)
         assertEquals(PostVisibility.PUBLIC, post.visibility)
@@ -122,7 +123,7 @@ class CreateServiceTest {
             )
 
         assertInstanceOf(ApiResponse.Success.Created::class.java, response)
-        val slug = urlService.extractPostSlug((response as ApiResponse.Success.Created).location)!!
+        val slug = urlService.extractSlug((response as ApiResponse.Success.Created).location)!!
         assertTrue(slug.isNotBlank())
         assertNotNull(postService.findBySlug(slug))
 
@@ -187,7 +188,7 @@ class CreateServiceTest {
 
         assertInstanceOf(ApiResponse.Success.Created::class.java, response)
         val location = (response as ApiResponse.Success.Created).location
-        val slug = urlService.extractPostSlug(location)!!
+        val slug = urlService.extractSlug(location)!!
         val post = postService.findBySlug(slug)!!
         assertEquals(urlService.generatePostUrl(post), location)
         assertEquals(emptyList<Mf2Value>(), post.post.getProperty("mp-syndicate-to"))
@@ -202,7 +203,7 @@ class CreateServiceTest {
             )
 
         assertInstanceOf(ApiResponse.Success.Created::class.java, response)
-        val slug = urlService.extractPostSlug((response as ApiResponse.Success.Created).location)!!
+        val slug = urlService.extractSlug((response as ApiResponse.Success.Created).location)!!
         val post = postService.findBySlug(slug)!!
         assertEquals(
             listOf(Mf2Value.Json(mapper.readTree("""{"html": "<p>hi</p>"}"""))),
@@ -232,7 +233,7 @@ class CreateServiceTest {
             )
 
         assertInstanceOf(ApiResponse.Success.Created::class.java, response)
-        val slug = urlService.extractPostSlug((response as ApiResponse.Success.Created).location)!!
+        val slug = urlService.extractSlug((response as ApiResponse.Success.Created).location)!!
         val post = postService.findBySlug(slug)!!
 
         val published = post.post.getFirstProperty("published") as? Mf2Value.String
@@ -253,7 +254,7 @@ class CreateServiceTest {
 
         assertInstanceOf(ApiResponse.Success.Created::class.java, response)
         val location = (response as ApiResponse.Success.Created).location
-        val slug = urlService.extractPostSlug(location)!!
+        val slug = urlService.extractSlug(location)!!
         val post = postService.findBySlug(slug)!!
 
         assertTrue(location.contains("/2019/06/01/"), "expected backdated date in location, got $location")

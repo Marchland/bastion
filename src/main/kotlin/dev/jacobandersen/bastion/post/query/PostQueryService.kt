@@ -2,7 +2,8 @@ package dev.jacobandersen.bastion.post.query
 
 import dev.jacobandersen.bastion.post.internal.model.Post
 import dev.jacobandersen.bastion.post.internal.store.PostService
-import dev.jacobandersen.bastion.post.internal.url.PostUrlService
+import dev.jacobandersen.bastion.post.internal.url.generatePostUrl
+import dev.jacobandersen.bastion.url.ContentUrlService
 import org.springframework.stereotype.Service
 import java.util.UUID
 
@@ -14,11 +15,11 @@ import java.util.UUID
 @Service
 class PostQueryService(
     private val postService: PostService,
-    private val urlService: PostUrlService,
+    private val urlService: ContentUrlService,
 ) {
     fun byUrl(url: String): PostQueryResult {
         val slug =
-            urlService.extractPostSlug(url)
+            urlService.extractSlug(url)
                 ?: return PostQueryResult.Invalid("Invalid URL for this Bastion instance: $url")
         val post = postService.findBySlug(slug) ?: return PostQueryResult.NotFound
         val view = post.toStateView()

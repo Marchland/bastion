@@ -5,9 +5,10 @@ import dev.jacobandersen.bastion.post.internal.metadata.PostTypesRegistry
 import dev.jacobandersen.bastion.post.internal.repository.PostRepository
 import dev.jacobandersen.bastion.post.internal.store.PostService
 import dev.jacobandersen.bastion.post.internal.syndication.PostSyndicationService
-import dev.jacobandersen.bastion.post.internal.url.PostUrlService
 import dev.jacobandersen.bastion.post.types.PostMf2Type
 import dev.jacobandersen.bastion.post.types.PostTagFilter
+import dev.jacobandersen.bastion.url.ContentUrlConfig
+import dev.jacobandersen.bastion.url.ContentUrlService
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -25,7 +26,13 @@ class PostReadServiceTest {
     private val postService = mock<PostService>()
     private val postRepository = mock<PostRepository>()
     private val postSyndicationService = mock<PostSyndicationService>()
-    private val urlService = mock<PostUrlService>()
+    private val urlService =
+        ContentUrlService(
+            ContentUrlConfig(
+                baseUrl = "https://bastion.test",
+                pathPattern = "{year}/{month}/{day}/{slug}",
+            ),
+        )
     private val registry =
         PostTypesRegistry(
             PostTypesConfig(

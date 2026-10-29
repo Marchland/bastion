@@ -5,9 +5,10 @@ import dev.jacobandersen.bastion.post.internal.model.Post
 import dev.jacobandersen.bastion.post.internal.repository.PostRepository
 import dev.jacobandersen.bastion.post.internal.store.PostService
 import dev.jacobandersen.bastion.post.internal.syndication.PostSyndicationService
-import dev.jacobandersen.bastion.post.internal.url.PostUrlService
+import dev.jacobandersen.bastion.post.internal.url.generatePostUrl
 import dev.jacobandersen.bastion.post.types.PostMf2Type
 import dev.jacobandersen.bastion.post.types.PostTagFilter
+import dev.jacobandersen.bastion.url.ContentUrlService
 import dev.jacobandersen.microformats2.firstText
 import dev.jacobandersen.microformats2.htmls
 import dev.jacobandersen.microformats2.texts
@@ -31,7 +32,7 @@ class PostReadService(
     private val postRepository: PostRepository,
     private val postSyndicationService: PostSyndicationService,
     private val postTypesRegistry: PostTypesRegistry,
-    private val urlService: PostUrlService,
+    private val urlService: ContentUrlService,
     private val zone: ZoneId,
 ) {
     fun feed(query: PostFeedQuery): List<PostView> {
@@ -72,17 +73,13 @@ class PostReadService(
 
     fun lookupByUrl(url: String): PostLookup? {
         val ref =
-            urlService.extractPostRef(url)
+            urlService.extractRef(url)
                 ?: throw IllegalArgumentException("url is not a URL on this Bastion instance")
         val found = postService.findBySlug(ref.slug) ?: return null
 
         // Strict date validation: if the path pattern contains date placeholders,
         // the URL must match the post's published date, otherwise 404.
-        val pattern = urlService.config.pathPattern
-        val publishedAt = found.publishedAt
-        if (pattern.contains("{year}") && ref.year != publishedAt?.year) return null
-        if (pattern.contains("{month}") && ref.month != publishedAt?.monthValue) return null
-        if (pattern.contains("{day}") && ref.day != publishedAt?.dayOfMonth) return null
+        if (!urlService.matchesDate(ref, found.publishedAt)) return null
 
         return toLookup(found)
     }

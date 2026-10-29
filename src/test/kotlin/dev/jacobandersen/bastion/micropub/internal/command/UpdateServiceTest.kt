@@ -5,9 +5,10 @@ import dev.jacobandersen.bastion.micropub.internal.type.req.MicropubPayload
 import dev.jacobandersen.bastion.micropub.internal.type.resp.ApiResponse
 import dev.jacobandersen.bastion.post.internal.model.Post
 import dev.jacobandersen.bastion.post.internal.store.PostService
-import dev.jacobandersen.bastion.post.internal.url.PostUrlService
+import dev.jacobandersen.bastion.post.internal.url.generatePostUrl
 import dev.jacobandersen.bastion.post.types.PostStatus
 import dev.jacobandersen.bastion.post.types.PostVisibility
+import dev.jacobandersen.bastion.url.ContentUrlService
 import dev.jacobandersen.microformats2.Mf2Object
 import dev.jacobandersen.microformats2.Mf2Value
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -36,7 +37,7 @@ class UpdateServiceTest {
     lateinit var postService: PostService
 
     @Autowired
-    lateinit var urlService: PostUrlService
+    lateinit var urlService: ContentUrlService
 
     private val mapper = JsonMapper.builderWithJackson2Defaults().build()
 
@@ -293,7 +294,7 @@ class UpdateServiceTest {
 
         assertInstanceOf(ApiResponse.Success.Created::class.java, response)
         val location = (response as ApiResponse.Success.Created).location
-        val newSlug = urlService.extractPostSlug(location)!!
+        val newSlug = urlService.extractSlug(location)!!
         assertNotNull(postService.findBySlug(newSlug))
         assertNull(postService.findBySlug(post.slug))
     }
