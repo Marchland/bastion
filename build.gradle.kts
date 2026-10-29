@@ -24,7 +24,7 @@ repositories {
     mavenCentral()
     maven {
         name = "Microformats2GitHubPackages"
-        url = uri("https://maven.pkg.github.com/marchland/microformats2")
+        url = uri("https://maven.pkg.github.com/jacobsandersen/microformats2")
         credentials {
             username = System.getenv("PACKAGES_USER") ?: System.getenv("GITHUB_ACTOR") ?: (project.findProperty("gpr.user") as String?)
             password = System.getenv("PACKAGES_TOKEN") ?: System.getenv("GITHUB_TOKEN") ?: (project.findProperty("gpr.token") as String?)
