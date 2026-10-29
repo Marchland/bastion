@@ -23,4 +23,10 @@ jobs:
         if: ${{ steps.release.outputs.release_created == 'true' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh workflow run release-image.yml --repo "${{ github.repository }}" --ref "${{ steps.release.outputs.tag_name }}"
+        run: |
+          tag="${{ steps.release.outputs.tag_name }}"
+          gh workflow run release-image.yml \
+            --repo "${{ github.repository }}" \
+            --ref "$tag" \
+            -f "source_ref=$tag" \
+            -f "image_tag=${tag#v}"
