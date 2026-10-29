@@ -1,7 +1,7 @@
 package dev.jacobandersen.bastion.indieauth.internal.controller
 
 import dev.jacobandersen.bastion.indieauth.internal.IndieAuthEndpoints
-import dev.jacobandersen.bastion.indieauth.internal.config.IndieAuthConfig
+import dev.jacobandersen.bastion.indieauth.internal.scope.ScopeCatalog
 import dev.jacobandersen.bastion.indieauth.internal.type.AuthorizationServerMetadata
 import dev.jacobandersen.bastion.indieauth.internal.util.Issuers
 import jakarta.annotation.PostConstruct
@@ -23,7 +23,7 @@ import org.springframework.web.bind.annotation.RestController
 @RestController
 class DiscoveryController(
     @Value($$"${bastion.public-url}") private val publicUrl: String,
-    private val config: IndieAuthConfig,
+    private val scopeCatalog: ScopeCatalog,
 ) {
     @PostConstruct
     fun validateIssuer() {
@@ -39,7 +39,7 @@ class DiscoveryController(
             introspectionEndpoint = baseUrl() + IndieAuthEndpoints.INTROSPECTION,
             revocationEndpoint = baseUrl() + IndieAuthEndpoints.REVOCATION,
             revocationEndpointAuthMethodsSupported = listOf("none"),
-            scopesSupported = config.allowedScopes.sorted(),
+            scopesSupported = scopeCatalog.allowedScopes.sorted(),
             grantTypesSupported = listOf("authorization_code", "refresh_token"),
             userinfoEndpoint = baseUrl() + IndieAuthEndpoints.USERINFO,
         )

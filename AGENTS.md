@@ -47,8 +47,8 @@ When updating this file, preserve this bar for all agents and keep entries conci
 - `micropub` has no public surface. Its `internal/command` and `internal/query` packages are protocol adapters over
   post commands/queries/metadata/syndication plus `media::media-storage`. Post updates are sent as `PostPatch`; the
   adapter does not merge the document itself.
-- `indieauth` exposes only `indieauth::indieauth-token-query`. `AccessTokenQueryService` resolves only tokens for the
-  configured Bastion identity. Token exchange/refresh/revocation commands stay internal.
+- `indieauth` exposes `indieauth::indieauth-token-query` and `indieauth::indieauth-scopes`. `AccessTokenQueryService`
+  resolves only tokens for the configured Bastion identity. Token exchange/refresh/revocation commands stay internal.
 - `webmention` exposes only `webmention::webmention-read`. Inbound and outbound commands stay internal. It uses
   `url::ContentUrlMatcher` for own-content checks, not `post::post-url`.
 - `api` exposes nothing; it depends only on `post::post-read` and `webmention::webmention-read`.
@@ -136,7 +136,12 @@ When updating this file, preserve this bar for all agents and keep entries conci
 - Introspection (`/indieauth/introspect`, Bearer-gated, RFC 7662 plus `me`), revocation (`/indieauth/revocation`,
   always 200), and userinfo (`/indieauth/userinfo`, needs `profile`/`email` scope) are served and advertised.
   Profile claims come from static `bastion.indieauth.profile.*` config (`ProfileClaimService`); `email` needs both
-  `profile` and `email` scopes. Default scopes include `email` (`IndieAuthConfig`).
+  `profile` and `email` scopes.
+- IndieAuth owns the standard `profile` and `email` scopes. Modules register their own scopes by implementing
+  `IndieAuthScopeContributor` from `indieauth::indieauth-scopes`; `ScopeCatalog` unions the standard and contributed
+  scopes and is the single source for discovery and authorization validation. Micropub contributes its scopes from
+  `MicropubTokenScope`. There is no central scope list in config. A module that contributes a scope must enforce it,
+  and new modules should use module-prefixed scope names such as `notes:read`.
 - Micropub token validation (`MicropubTokenValidator`) uses `AccessTokenQueryService` from
   `indieauth::indieauth-token-query`; the query service enforces the configured `bastion.indieauth.me`, so Micropub does
   not read that config directly. Token commands stay inside IndieAuth.

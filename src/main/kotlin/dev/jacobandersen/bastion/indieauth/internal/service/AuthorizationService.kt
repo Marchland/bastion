@@ -8,6 +8,7 @@ import dev.jacobandersen.bastion.indieauth.internal.data.repository.AuthRequestR
 import dev.jacobandersen.bastion.indieauth.internal.data.repository.AuthorizationCodeRepository
 import dev.jacobandersen.bastion.indieauth.internal.identity.IdentityProvider
 import dev.jacobandersen.bastion.indieauth.internal.identity.IdentityProviderException
+import dev.jacobandersen.bastion.indieauth.internal.scope.ScopeCatalog
 import dev.jacobandersen.bastion.indieauth.internal.security.Pkce
 import dev.jacobandersen.bastion.indieauth.internal.security.Tokens
 import dev.jacobandersen.bastion.indieauth.internal.type.IndieAuthError
@@ -58,6 +59,7 @@ sealed interface CompleteResult {
 @Service
 class AuthorizationService(
     private val config: IndieAuthConfig,
+    private val scopeCatalog: ScopeCatalog,
     private val identityProvider: IdentityProvider,
     private val authRequestRepository: AuthRequestRepository,
     private val authorizationCodeRepository: AuthorizationCodeRepository,
@@ -317,7 +319,7 @@ class AuthorizationService(
 
     private fun validateScope(scope: String?): List<String> {
         val requested = Scopes.parse(scope)
-        val invalid = requested.filterNot { it in config.allowedScopes }
+        val invalid = requested.filterNot { it in scopeCatalog.allowedScopes }
         if (invalid.isNotEmpty()) {
             throw IndieAuthException(
                 IndieAuthError.Code.INVALID_SCOPE,

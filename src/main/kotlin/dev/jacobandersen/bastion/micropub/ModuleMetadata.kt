@@ -9,7 +9,7 @@ import org.springframework.modulith.PackageInfo
     allowedDependencies = [
         "post::post-commands", "post::post-query", "post::post-metadata",
         "post::post-syndication", "post::post-types",
-        "indieauth::indieauth-token-query",
+        "indieauth::indieauth-token-query", "indieauth::indieauth-scopes",
         "media::media-storage",
         "util", "config::config-security",
     ],

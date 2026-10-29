@@ -17,6 +17,7 @@ import dev.jacobandersen.bastion.indieauth.internal.service.OwnerVerifier
 import dev.jacobandersen.bastion.micropub.internal.security.MicropubToken
 import dev.jacobandersen.bastion.micropub.internal.security.MicropubTokenScope
 import dev.jacobandersen.bastion.micropub.internal.security.MicropubTokenValidator
+import org.hamcrest.Matchers.hasItems
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
@@ -111,7 +112,12 @@ class IndieAuthIntegrationTest {
             .andExpect(jsonPath("$.code_challenge_methods_supported[0]").value("S256"))
             .andExpect(jsonPath("$.authorization_response_iss_parameter_supported").value(true))
             .andExpect(jsonPath("$.grant_types_supported").isArray())
-            .andExpect(jsonPath("$.scopes_supported").isArray())
+            .andExpect(
+                jsonPath(
+                    "$.scopes_supported",
+                    hasItems("profile", "email", "create", "update", "delete", "undelete", "media"),
+                ),
+            )
     }
 
     @Test

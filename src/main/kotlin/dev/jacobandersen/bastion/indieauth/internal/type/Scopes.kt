@@ -12,6 +12,7 @@ object Scopes {
             .orEmpty()
             .split(' ')
             .filter { it.isNotBlank() }
+            .distinct()
 
     /** Joins distinct, non-blank scopes back into a single space-delimited string. */
     fun join(scopes: Collection<String>): String =

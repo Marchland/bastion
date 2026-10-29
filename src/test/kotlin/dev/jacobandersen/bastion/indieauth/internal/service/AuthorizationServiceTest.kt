@@ -8,9 +8,11 @@ import dev.jacobandersen.bastion.indieauth.internal.data.repository.Authorizatio
 import dev.jacobandersen.bastion.indieauth.internal.identity.IdentityProvider
 import dev.jacobandersen.bastion.indieauth.internal.identity.IdentityProviderException
 import dev.jacobandersen.bastion.indieauth.internal.identity.ProviderIdentity
+import dev.jacobandersen.bastion.indieauth.internal.scope.ScopeCatalog
 import dev.jacobandersen.bastion.indieauth.internal.security.Pkce
 import dev.jacobandersen.bastion.indieauth.internal.security.Tokens
 import dev.jacobandersen.bastion.indieauth.internal.type.IndieAuthError
+import dev.jacobandersen.bastion.indieauth.scopes.IndieAuthScopeContributor
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertThrows
@@ -33,6 +35,7 @@ class AuthorizationServiceTest {
             me = "https://bastion.test",
             herald = IndieAuthConfig.HeraldConfig(baseUrl = "https://herald.test", authorizePath = "/auth"),
         )
+    private val scopeCatalog = ScopeCatalog(listOf(IndieAuthScopeContributor { setOf("create") }))
     private val identityProvider = mock(IdentityProvider::class.java)
     private val authRequestRepository = mock(AuthRequestRepository::class.java)
     private val authorizationCodeRepository = mock(AuthorizationCodeRepository::class.java)
@@ -41,6 +44,7 @@ class AuthorizationServiceTest {
     private val service =
         AuthorizationService(
             config,
+            scopeCatalog,
             identityProvider,
             authRequestRepository,
             authorizationCodeRepository,
