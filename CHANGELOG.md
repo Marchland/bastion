@@ -1,5 +1,51 @@
 # Changelog
 
+## [1.3.36](https://github.com/jacobsandersen/bastion/compare/v1.3.35...v1.3.36) (2026-10-29)
+
+
+### Features
+
+* add durable event publication registry ([b21428e](https://github.com/jacobsandersen/bastion/commit/b21428e55af7010f1269b6262931ff76f803f0e1))
+* **events:** add durable Modulith event publication registry ([27af9dc](https://github.com/jacobsandersen/bastion/commit/27af9dc761e8a79fb177dcd8a00c73e285eb6fcd))
+* **events:** resubmit failed event publications ([90433f7](https://github.com/jacobsandersen/bastion/commit/90433f7dc0c6dc495eed4223ec321d1e6f69cee6))
+* **post:** detect concurrent post updates ([05c70ff](https://github.com/jacobsandersen/bastion/commit/05c70ffbe5c6002cb0016fcaa0b89ba63cd8ce03))
+* **post:** detect concurrent post updates ([3ccdb4c](https://github.com/jacobsandersen/bastion/commit/3ccdb4cc6f5326afd72b187a7bcbc36bc0c59324))
+* support multi-instance scaling ([efad806](https://github.com/jacobsandersen/bastion/commit/efad8064ad3f2df3c98c680e6f5198e44a08c270))
+* **syndication:** add claim-based dispatch and periodic reconciliation ([10a5694](https://github.com/jacobsandersen/bastion/commit/10a569435744a6ceb5aefa02986aa74ef19c5bb6))
+* **webmention:** make submission limits global with Redis ([aafe5c7](https://github.com/jacobsandersen/bastion/commit/aafe5c76bc909d940e0bc9c194334863c243a932))
+
+
+### Documentation
+
+* document event publication registry ([f7a4512](https://github.com/jacobsandersen/bastion/commit/f7a451206ecf948dbd475ee55bec856ca91dcfd1))
+* document multi-instance scaling ([4b3b753](https://github.com/jacobsandersen/bastion/commit/4b3b753399e5d92413f48096295e4f3d22fcacdb))
+* update module boundary notes ([2ecf29c](https://github.com/jacobsandersen/bastion/commit/2ecf29ce72c9be63b6eb2275ac010eae6050a292))
+
+
+### Miscellaneous Chores
+
+* **ci:** publish images from the repository owner ([#99](https://github.com/jacobsandersen/bastion/issues/99)) ([4553bb8](https://github.com/jacobsandersen/bastion/commit/4553bb80114b8095d74e84e0875223ad9bbf9ccf))
+* **jobrunr:** configure multi-instance worker settings ([29797b0](https://github.com/jacobsandersen/bastion/commit/29797b04e9f82b7ccf685e5376b4d1f952f2dc24))
+* use jacobsandersen microformats2 packages ([#100](https://github.com/jacobsandersen/bastion/issues/100)) ([53c7e5b](https://github.com/jacobsandersen/bastion/commit/53c7e5b6af12af13b8c2fe388be247bddd1602bc))
+
+
+### Code Refactoring
+
+* **config:** own Micropub security wiring in its module ([543f5a2](https://github.com/jacobsandersen/bastion/commit/543f5a22d0a648a67baee82be4f1c1afb7927c30))
+* **events:** run post-change listeners asynchronously ([6c6fa81](https://github.com/jacobsandersen/bastion/commit/6c6fa8129e4bfa4bd7bbbfa4cc06db3373858d83))
+* **indieauth:** let modules own their scopes ([842b516](https://github.com/jacobsandersen/bastion/commit/842b516b75c7a541e79376aea9b44534aea332c0))
+* **indieauth:** let modules own their scopes ([bbcf437](https://github.com/jacobsandersen/bastion/commit/bbcf437407e9edb49cd593f04ab8523b8209a2c9))
+* **indieauth:** resolve only tokens for the configured identity ([a407902](https://github.com/jacobsandersen/bastion/commit/a40790261cf95ed01730f973cf742d3de70339eb))
+* **media:** extract media storage into a media module ([7e715fa](https://github.com/jacobsandersen/bastion/commit/7e715fa3ec6414b982ad7a9fc083364984353332))
+* **post:** apply updates through a protocol-neutral patch ([e10d522](https://github.com/jacobsandersen/bastion/commit/e10d522eab02967b935fce1dba2385eb90e8c1a0))
+* **post:** neutralize metadata and source query contracts ([bfb6ff9](https://github.com/jacobsandersen/bastion/commit/bfb6ff9d64d835b5f341d54f2123a611bc2b0029))
+* **post:** remove unused model and syndication contracts ([596cd6f](https://github.com/jacobsandersen/bastion/commit/596cd6f70965becff65acd57f979c307154a5eb8))
+* tighten module boundaries and adapter ownership ([af1c660](https://github.com/jacobsandersen/bastion/commit/af1c66063579ee8729fdc443b3bdd587c142455b))
+* **url:** move content URL matching into the shared url module ([ae5cd7e](https://github.com/jacobsandersen/bastion/commit/ae5cd7e88ea9098799a222ced43fdaa7285c6e1b))
+* **url:** own content URL generation ([c39dbdb](https://github.com/jacobsandersen/bastion/commit/c39dbdb1bd251475b9d9afd06c1a256daf280c3d))
+* **url:** own content URL generation ([8739a95](https://github.com/jacobsandersen/bastion/commit/8739a950087525e978887a4b2c97402cd8b60d12))
+* **util:** move slugify provider to the shared util module ([94213f3](https://github.com/jacobsandersen/bastion/commit/94213f3f6bdce69c7847f5b1216350293d0b8884))
+
 ## [1.3.35](https://github.com/Marchland/bastion/compare/v1.3.34...v1.3.35) (2026-10-27)
 
 
